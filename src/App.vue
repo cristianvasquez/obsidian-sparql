@@ -1,9 +1,15 @@
 <script>
+import { inject } from 'vue'
+
 export default {
-  props: {
-    app: {
-      type: Object,
-      required: true
+  setup() {
+    const context = inject('context')
+    if (!context) throw new Error('Obsidian context not provided')
+
+    const app = context.app
+
+    return {
+      app
     }
   },
   computed: {
