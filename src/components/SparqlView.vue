@@ -1,84 +1,73 @@
 <script setup>
-import { inject, onMounted, ref } from 'vue'
-import SimpleTable from './components/SimpleTable.vue'
+import { inject, onMounted, ref, computed } from 'vue'
 import { Parser } from 'sparqljs'
+import { replaceSPARQL } from '../lib/templates.js'
+import { DebugModal } from './debug.js'
+import SimpleTable from './SimpleTable.vue'
 
+// Injected
 const text = inject('text')
 const context = inject('context')
 
-const data = ref(null)
+// State
+const tableData = ref(null)
 const error = ref(null)
+const debug = ref({})
 
+// Constants
 const parser = new Parser({ skipValidation: true, sparqlStar: true })
 
-/**
- * Run a SELECT query and format results into a table.
- */
-async function handleSelect() {
-  try {
-    const result = await context.triplestore.select(text)
-    data.value = context.config.selectToTable(result)
-  } catch (e) {
-    error.value = formatError(e)
+const hasResults = computed(() => tableData.value?.rows?.length > 0)
+
+const toTable = {
+  SELECT(results) {
+    const header = Object.keys(results?.[0] || {})
+    const rows = results.map(row => header.map(k => row[k]?.value ?? ''))
+    return { header, rows }
+  },
+  CONSTRUCT(dataset) {
+    const rows = Array.from(dataset).map(q => [
+      q.subject.value,
+      q.predicate.value,
+      q.object.value
+    ])
+    return { header: ['subject', 'predicate', 'object'], rows }
   }
 }
 
-/**
- * Run a CONSTRUCT query and format results into a table.
- */
-async function handleConstruct() {
-  try {
-    const result = await context.triplestore.construct(text)
-    data.value = context.config.datasetToTable(result)
-  } catch (e) {
-    error.value = formatError(e)
-  }
+const runQuery = async (queryType, queryText) => {
+  const store = context.triplestore
+  if (queryType === 'SELECT') return toTable.SELECT(await store.select(queryText))
+  if (queryType === 'CONSTRUCT') return toTable.CONSTRUCT(await store.construct(queryText))
+  throw new Error(`⚠️ Unhandled query type: ${queryType}`)
 }
 
-/**
- * Convert any error into a display-friendly string.
- */
-function formatError(err) {
-  return err instanceof Error ? err.message : String(err)
-}
-
-/**
- * Main lifecycle logic to parse and execute the SPARQL query.
- */
 onMounted(async () => {
   try {
-    const query = parser.parse(text)
-
-    console.log('[SPARQL]', text)
-
-    switch (query.queryType) {
-      case 'SELECT':
-        await handleSelect()
-        break
-      case 'CONSTRUCT':
-        await handleConstruct()
-        break
-      default:
-        error.value = [
-          `⚠️ Unhandled query type: "${query.queryType}"`,
-          '',
-          JSON.stringify(query, null, 2),
-        ].join('\n')
-    }
-  } catch (e) {
-    error.value = formatError(e)
+    const file = context.app.workspace.getActiveFile()
+    const replaced = replaceSPARQL(text, file)
+    const parsed = parser.parse(replaced)
+    debug.value = { raw: text, replaced }
+    tableData.value = await runQuery(parsed.queryType, replaced)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
   }
 })
 </script>
 
 <template>
-  <template v-if="data">
-    <simple-table :header="data.header" :rows="data.rows" />
-    <div v-if="!data.rows.length">No results</div>
-  </template>
+  <div class="sparql-query-component">
+    <SimpleTable v-if="tableData" :header="tableData.header" :rows="tableData.rows" />
+    <p v-if="tableData && !hasResults" class="no-results">No results found</p>
 
-  <div v-else-if="error" class="error">
-    <pre>{{ error }}</pre>
+    <div v-else-if="error" class="error">
+      <pre>{{ error }}</pre>
+      <details v-if="debug.replaced">
+        <summary>Debug Info</summary>
+        <pre>{{ debug }}</pre>
+        <button @click="() => new DebugModal(context.app, debug).open()">Show in modal</button>
+      </details>
+    </div>
   </div>
 </template>
 

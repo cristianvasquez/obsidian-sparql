@@ -6,24 +6,20 @@ import {
   TFile,
 } from 'obsidian'
 import { createApp } from 'vue'
+import { fileUri } from 'vault-triplifier'
 
-import DebugView from './App.vue'
-import SparqlView from './App.vue'
+import TriplesView from './components/App.vue'
+import SparqlView from './components/SparqlView.vue'
+import SparqlViewDebug from './components/SparqlViewDebug.vue'
 import Client from 'sparql-http-client/ParsingClient'
+import { getTemplate, replaceSPARQL } from './lib/templates.js'
 import Triplestore from './lib/Triplestore.js'
 import { ns } from './namespaces.js'
 import { EventEmitter } from './lib/EventEmitter.js'
 
 const PLUGIN_NAME = 'obsidian-sparql'
 
-export const SIDE_VIEW_ID = `${PLUGIN_NAME}-sideview`
-
-function getTemplate () {
-  return `SELECT ?subject ?predicate ?object WHERE {
-  ?subject ?predicate ?object .
-  FILTER(STRSTARTS(STR(?subject), "file://"))
-} LIMIT 10`
-}
+export const SIDE_VIEW_ID = `obsidian-sparql-sideview`
 
 const DEFAULT_SETTINGS = {
   clientSettings: {
@@ -57,7 +53,7 @@ export default class Prototype_11 extends Plugin {
       plugin: this,
     }
 
-    const debugApp = createApp(DebugView)
+    const debugApp = createApp(TriplesView)
     debugApp.provide('context', appContext)
     this.vueApp = debugApp
     this.registerView(SIDE_VIEW_ID,
@@ -66,8 +62,14 @@ export default class Prototype_11 extends Plugin {
     this.registerMarkdownCodeBlockProcessor('osg', (source, el) => {
       const sparqlApp = createApp(SparqlView)
       sparqlApp.provide('context', appContext)
-      // sparqlApp.provide('text',
-      //   config.replaceSPARQL(source, appContext.uriResolvers))
+      sparqlApp.provide('text', source)
+      sparqlApp.mount(el)
+    })
+
+    this.registerMarkdownCodeBlockProcessor('debug', (source, el) => {
+      const sparqlApp = createApp(SparqlViewDebug)
+      sparqlApp.provide('context', appContext)
+      sparqlApp.provide('text', source)
       sparqlApp.mount(el)
     })
   }
@@ -125,17 +127,17 @@ export default class Prototype_11 extends Plugin {
         originalCallback()
       }
     }
+
   }
 
   registerEvents () {
     const deleteIndex = async (path) => {
-      const uri = config.encodeURI(path)
+      const uri = fileUri(path)
       await this.triplestore.deleteDataset(uri)
     }
 
     this.registerEvent(
       this.app.metadataCache.on('changed', (file) => {
-        console.log('file changed')
         this.events.emit('update', file)
       }),
     )
@@ -143,7 +145,6 @@ export default class Prototype_11 extends Plugin {
     this.registerEvent(
       this.app.vault.on('rename', async (file, oldPath) => {
         if (!(file instanceof TFile)) return
-        console.log('renaming')
         await deleteIndex(oldPath)
         this.events.emit('update', file)
       }),
@@ -152,7 +153,6 @@ export default class Prototype_11 extends Plugin {
     this.registerEvent(
       this.app.vault.on('delete', async (file) => {
         if (!(file instanceof TFile)) return
-        console.log('deleting')
         await deleteIndex(file.path)
         this.events.emit('update', undefined)
       }),
