@@ -7,13 +7,13 @@ const VARIANTS = {
     },
 };
 
-function extract(lines: string[], lineNumber: number, variants: {} = VARIANTS) {
+function extract(lines, lineNumber, variants = VARIANTS) {
 
     let begin = null
     let end = null
     let lang = null
 
-    function equals(line: string, target: string) {
+    function equals(line, target) {
         let str = line.trim()
         return str.toUpperCase() === target.toUpperCase();
     }
@@ -23,7 +23,7 @@ function extract(lines: string[], lineNumber: number, variants: {} = VARIANTS) {
      * @param line
      */
 
-    function fenceOpeningWithKey(line: string) {
+    function fenceOpeningWithKey(line) {
         for (let key of Object.keys(variants)) {
             if (equals(line, '```' + key)) {
                 return key
@@ -69,7 +69,7 @@ function extract(lines: string[], lineNumber: number, variants: {} = VARIANTS) {
  * @param src
  * @param variants
  */
-function extract_all(src: string, variants = VARIANTS) {
+function extract_all(src, variants = VARIANTS) {
     let lines = src.split('\n')
     let result = []
     for (let i = 0; i < lines.length; i++) {
@@ -88,7 +88,7 @@ function extract_all(src: string, variants = VARIANTS) {
  * @param lineNumber
  * @param variants
  */
-function extract_current(src: string, lineNumber: number, variants = VARIANTS) {
+function extract_current(src, lineNumber, variants = VARIANTS) {
     let lines = src.split('\n')
     return extract(lines, lineNumber, variants)
 }

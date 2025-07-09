@@ -1,4 +1,4 @@
-import {extract_current,extract_all} from '../extract'
+import {extract_current,extract_all} from '../extract.js'
 import {expect, test} from "@jest/globals";
 
 test('extracts code fence', () => {
@@ -75,4 +75,3 @@ More turtle
 
     expect(extract_all(src)).toStrictEqual(hit);
 });
-

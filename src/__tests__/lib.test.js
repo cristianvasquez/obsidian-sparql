@@ -1,4 +1,4 @@
-import {sum} from '../lib'
+import {sum} from '../lib.js'
 import {expect, test} from "@jest/globals";
 
 test('sums', () => {

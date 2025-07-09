@@ -1,7 +1,8 @@
 import {test} from "@jest/globals";
+import graphy from 'graphy';
 
-const ttl_read = require('@graphy/content.ttl.read');
-const nt_scan = require('@graphy/content.nt.scan');
+const ttl_read = graphy.content.ttl.read;
+const nt_scan = graphy.content.nt.scan;
 
 
 test('test nt_scan', () => {
@@ -12,7 +13,7 @@ test('test nt_scan', () => {
         preset: 'scribe',
 
         // 'db_chunk' will be a Buffer in this preset, simply write it to stdout
-        update(db_chunk: any) {
+        update(db_chunk) {
             // process.stdout.write(db_chunk);
             console.log(db_chunk)
         },
@@ -37,17 +38,13 @@ test('test ttl_read', () => {
         foaf:name "Spiderman" .
 `, {
         // whew! simplified inline events style  ;)
-        data(y_quad: any) {
+        data(y_quad) {
             console.dir(y_quad);
         },
 
-        eof(h_prefixes: any) {
+        eof(h_prefixes) {
             console.log('done!');
         },
     })
 
 });
-
-
-
-

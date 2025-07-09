@@ -1,4 +1,3 @@
-import typescript from '@rollup/plugin-typescript';
 import {nodeResolve} from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 
@@ -12,7 +11,7 @@ if you want to view the source visit the plugins github repository
 `;
 
 export default {
-  input: 'src/main.ts',
+  input: 'src/main.js',
   output: {
     dir: '.',
     sourcemap: 'inline',
@@ -23,7 +22,6 @@ export default {
   },
   external: ['obsidian'],
   plugins: [
-    typescript(),
     nodeResolve({browser: true}),
     commonjs(),
   ]
