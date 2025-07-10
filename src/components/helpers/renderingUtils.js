@@ -1,6 +1,7 @@
 function splitTextLink (txt, links) {
   const includesLink = (txt) => {
-    const match = links.filter((x) => (txt === `[[${x}]]` || txt.indexOf(`[[${x}]]`) > 0))
+    const match = links.filter(
+      (x) => (txt === `[[${x}]]` || txt.indexOf(`[[${x}]]`) > 0))
     return match.length > 0 ? match[0] : false
   }
   const match = includesLink(txt)
@@ -10,7 +11,7 @@ function splitTextLink (txt, links) {
     if (pre.length) {
       result.push({
         value: pre,
-        type: 'text'
+        type: 'text',
       })
     }
     result.push({
@@ -41,7 +42,7 @@ function getSpans (text, links) {
       } else {
         result.push({
           value: tail,
-          type: 'text'
+          type: 'text',
         })
       }
     }

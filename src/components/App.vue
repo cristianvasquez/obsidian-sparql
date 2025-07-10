@@ -12,12 +12,6 @@ const triplifyFile = async (file) => {
   try {
     const content = await app.vault.read(file)
     const { term, dataset } = await triplifier.triplifyContent(content, file.path)
-
-    // await context.triplestore.deleteDataset(term)
-    //
-    // // Insert new triples
-    // await context.triplestore.insertDataset(term, dataset)
-
     result.value = dataset.toString()
   } catch (err) {
     result.value = 'Error: ' + err.message

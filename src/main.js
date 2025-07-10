@@ -4,6 +4,7 @@ import {
   PluginSettingTab,
   Setting,
   TFile,
+  Notice,
 } from 'obsidian'
 import { createApp } from 'vue'
 import { fileUri } from 'vault-triplifier'
@@ -28,9 +29,8 @@ const DEFAULT_SETTINGS = {
     user: '',
     password: '',
   },
-  indexOnOpen: false,
-  indexOnSave: true,
   allowUpdate: false,
+  syncCommand: '/home/cvasquez/.local/share/pnpm/osg global sync your-vault',
 }
 
 export default class Prototype_11 extends Plugin {
@@ -66,7 +66,7 @@ export default class Prototype_11 extends Plugin {
       sparqlApp.mount(el)
     })
 
-    this.registerMarkdownCodeBlockProcessor('debug', (source, el) => {
+    this.registerMarkdownCodeBlockProcessor('osg-debug', (source, el) => {
       const sparqlApp = createApp(SparqlViewDebug)
       sparqlApp.provide('context', appContext)
       sparqlApp.provide('text', source)
@@ -97,6 +97,53 @@ export default class Prototype_11 extends Plugin {
     await this.saveData(this.settings)
   }
 
+  async syncWithTriplestore () {
+    const command = this.settings.syncCommand
+    if (!command) {
+      new Notice('No sync command configured')
+      return
+    }
+
+    new Notice('Syncing with triplestore...')
+
+    try {
+      const { exec } = require('child_process')
+      const { promisify } = require('util')
+      const execAsync = promisify(exec)
+
+      const { stdout, stderr } = await execAsync(command)
+
+      // Show output in a modal
+      const modal = document.createElement('div')
+      modal.className = 'modal-bg'
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+      `
+      modal.innerHTML = `
+        <div class="modal" style="padding: 20px; max-width: 80%; max-height: 80%; overflow: auto; background: var(--background-primary); border-radius: 8px;">
+          <h3>Sync Output</h3>
+          <pre style="background: var(--background-secondary); padding: 10px; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;">${stdout}${stderr ? '\nSTDERR:\n' + stderr : ''}</pre>
+          <button class="mod-cta" onclick="this.closest('.modal-bg').remove()">Close</button>
+        </div>
+      `
+      document.body.appendChild(modal)
+
+      new Notice('Sync completed successfully')
+    } catch (error) {
+      new Notice('Sync failed: ' + error.message)
+      console.error('Sync error:', error)
+    }
+  }
+
   addCommands () {
     this.addCommand({
       id: 'open-obsidian-sparql',
@@ -118,6 +165,12 @@ export default class Prototype_11 extends Plugin {
       },
     })
 
+    this.addCommand({
+      id: 'sync-with-triplestore',
+      name: 'Sync with triplestore',
+      callback: () => this.syncWithTriplestore(),
+    })
+
     const saveCommand = this.app.commands?.commands?.['editor:save-file']
     if (saveCommand?.callback) {
       const originalCallback = saveCommand.callback
@@ -131,10 +184,6 @@ export default class Prototype_11 extends Plugin {
   }
 
   registerEvents () {
-    const deleteIndex = async (path) => {
-      const uri = fileUri(path)
-      await this.triplestore.deleteDataset(uri)
-    }
 
     this.registerEvent(
       this.app.metadataCache.on('changed', (file) => {
@@ -145,7 +194,6 @@ export default class Prototype_11 extends Plugin {
     this.registerEvent(
       this.app.vault.on('rename', async (file, oldPath) => {
         if (!(file instanceof TFile)) return
-        await deleteIndex(oldPath)
         this.events.emit('update', file)
       }),
     )
@@ -153,7 +201,6 @@ export default class Prototype_11 extends Plugin {
     this.registerEvent(
       this.app.vault.on('delete', async (file) => {
         if (!(file instanceof TFile)) return
-        await deleteIndex(file.path)
         this.events.emit('update', undefined)
       }),
     )
@@ -182,40 +229,25 @@ class SampleSettingTab extends PluginSettingTab {
     const client = this.plugin.settings.clientSettings
 
     const addTextSetting = (name, desc, key) => {
-      new Setting(containerEl).setName(name).setDesc(desc).addText((text) =>
-        text.setValue(client[key]).
-          setPlaceholder('').
-          onChange(async (value) => {
+      new Setting(containerEl).setName(name).setDesc(desc).addText((text) => {
+        text.setValue(client[key])
+          .setPlaceholder('')
+          .onChange(async (value) => {
             client[key] = value
             await this.plugin.saveSettings()
-          }),
-      )
+          })
+
+        // Make the input wider and more user-friendly
+        text.inputEl.style.width = '100%'
+        text.inputEl.style.fontFamily = 'var(--font-monospace)'
+        text.inputEl.style.fontSize = '14px'
+      })
     }
 
     addTextSetting('Endpoint URL', 'The query endpoint URL', 'endpointUrl')
     addTextSetting('Update URL', 'The update endpoint URL', 'updateUrl')
     addTextSetting('User', 'Endpoint user (if applicable)', 'user')
     addTextSetting('Password', 'Endpoint password (if applicable)', 'password')
-
-    new Setting(containerEl).setName('Index on open').
-      setDesc('Index a note each time you open it').
-      addToggle((toggle) => {
-        toggle.setValue(this.plugin.settings.indexOnOpen)
-        toggle.onChange(async (value) => {
-          this.plugin.settings.indexOnOpen = value
-          await this.plugin.saveSettings()
-        })
-      })
-
-    new Setting(containerEl).setName('Index on save').
-      setDesc('Index a note each time you save it').
-      addToggle((toggle) => {
-        toggle.setValue(this.plugin.settings.indexOnSave)
-        toggle.onChange(async (value) => {
-          this.plugin.settings.indexOnSave = value
-          await this.plugin.saveSettings()
-        })
-      })
 
     new Setting(containerEl).setName('Allow updates').
       setDesc('Enable SPARQL updates in code snippets').
@@ -225,6 +257,23 @@ class SampleSettingTab extends PluginSettingTab {
           this.plugin.settings.allowUpdate = value
           await this.plugin.saveSettings()
         })
+      })
+
+    new Setting(containerEl)
+      .setName('Sync command')
+      .setDesc('Shell command to sync with triplestore')
+      .addText((text) => {
+        text.setValue(this.plugin.settings.syncCommand)
+          .setPlaceholder('osg global sync experiments-showcase')
+          .onChange(async (value) => {
+            this.plugin.settings.syncCommand = value
+            await this.plugin.saveSettings()
+          })
+
+        // Make the input wider and more user-friendly
+        text.inputEl.style.width = '100%'
+        text.inputEl.style.fontFamily = 'var(--font-monospace)'
+        text.inputEl.style.fontSize = '14px'
       })
   }
 }

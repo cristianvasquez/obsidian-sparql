@@ -2,7 +2,6 @@
 import { inject, onMounted, ref, computed } from 'vue'
 import { Parser } from 'sparqljs'
 import { replaceSPARQL } from '../lib/templates.js'
-import { DebugModal } from './debug.js'
 import SimpleTable from './SimpleTable.vue'
 
 // Injected
@@ -12,7 +11,6 @@ const context = inject('context')
 // State
 const tableData = ref(null)
 const error = ref(null)
-const debug = ref({})
 
 // Constants
 const parser = new Parser({ skipValidation: true, sparqlStar: true })
@@ -47,7 +45,6 @@ onMounted(async () => {
     const file = context.app.workspace.getActiveFile()
     const replaced = replaceSPARQL(text, file)
     const parsed = parser.parse(replaced)
-    debug.value = { raw: text, replaced }
     tableData.value = await runQuery(parsed.queryType, replaced)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -62,11 +59,6 @@ onMounted(async () => {
 
     <div v-else-if="error" class="error">
       <pre>{{ error }}</pre>
-      <details v-if="debug.replaced">
-        <summary>Debug Info</summary>
-        <pre>{{ debug }}</pre>
-        <button @click="() => new DebugModal(context.app, debug).open()">Show in modal</button>
-      </details>
     </div>
   </div>
 </template>
