@@ -1,40 +1,21 @@
 <script setup>
 import { openOrSwitch, hoverPreview, isInVault } from 'obsidian-community-lib'
 import { inject } from '@vue/runtime-core'
-import { getTitleFromInternalUri, getPathFromInternalUri, getNameFromInternalUri } from '../../lib/uriUtils.js'
+import { getTitleFromUri, getPathFromFileUri, getNameFromNameUri, isNameResolved, isNameUri } from '../../lib/uriUtils.js'
 
-function getFileTitle (linkToTerm) {
-  // Use our utility that works with Term objects
-  return getTitleFromInternalUri(linkToTerm)
-}
+const getFileTitle = (linkToTerm) => getTitleFromUri(linkToTerm, context.app)
 
-function getFilePath (linkToTerm) {
-  try {
-    // Try to get name from URI first (for urn:name: URIs)
-    const name = getNameFromInternalUri(linkToTerm)
-    if (name && typeof name === 'string') {
-      return name
-    }
-    
-    // Try to get path from URI (for urn:resource: or file:// URIs)
-    const path = getPathFromInternalUri(linkToTerm, context.app)
-    if (path && typeof path === 'string') {
-      // If it's a full file system path, convert to vault-relative path
-      if (path.startsWith('/')) {
-        // Extract just the filename for vault-relative path
-        const filename = path.substring(path.lastIndexOf('/') + 1)
-        const cleanName = filename.endsWith('.md') ? filename.substring(0, filename.length - 3) : filename
-        return cleanName
-      }
-      return path
-    }
-    
-    // Last fallback - shouldn't happen for internal URIs
-    return 'Unknown'
-  } catch (error) {
-    console.error('Error in getFilePath:', error)
-    return 'Unknown'
+const getFilePath = (linkToTerm) => {
+  const name = getNameFromNameUri(linkToTerm)
+  if (name) return name
+  
+  const path = getPathFromFileUri(linkToTerm)
+  if (path) {
+    const fileName = path.split('/').pop()
+    return fileName.endsWith('.md') ? fileName.replace(/\.md$/, '') : fileName
   }
+  
+  return 'Unknown'
 }
 
 const SIDE_VIEW_ID = `obsidian-sparql-sideview`
@@ -85,20 +66,13 @@ async function hover (event) {
   }
 }
 
-function checkIsInVault() {
-  try {
-    const filePath = getFilePath(props.linkTo)
-    
-    if (!filePath || typeof filePath !== 'string') {
-      return false
-    }
-    
-    // Use isInVault with correct parameters: noteName, sourcePath
-    return isInVault(filePath)
-  } catch (error) {
-    console.error('Error checking if file is in vault:', error)
-    return false
+const checkIsInVault = () => {
+  if (isNameUri(props.linkTo)) {
+    return isNameResolved(props.linkTo, context.app)
   }
+  
+  const filePath = getFilePath(props.linkTo)
+  return filePath !== 'Unknown' && isInVault(filePath)
 }
 
 </script>

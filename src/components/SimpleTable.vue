@@ -1,7 +1,7 @@
 <script setup>
 import InternalLink from './helpers/InternalLink.vue'
 import { shrink } from './helpers/utils.js'
-import { isClickableInternalUri, isPropertyUri, getPropertyFromUri } from '../lib/uriUtils.js'
+import { isClickableUri, isPropertyUri, getPropertyFromUri } from '../lib/uriUtils.js'
 import { toRaw, ref, inject } from 'vue'
 
 const props = defineProps({
@@ -17,10 +17,10 @@ const props = defineProps({
 
 const error = ref(null)
 
-function isClickableInternal (term) {
+const isClickableInternal = (term) => {
   try {
     const context = inject('context')
-    return isClickableInternalUri(toRaw(term), context?.app)
+    return isClickableUri(toRaw(term), context?.app)
   } catch (err) {
     console.error('Error in isClickableInternal:', err)
     error.value = `Error checking if term is clickable: ${err.message}`

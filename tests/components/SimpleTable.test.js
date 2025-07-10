@@ -21,22 +21,56 @@ vi.mock('../../src/components/helpers/utils.js', () => ({
 }))
 
 vi.mock('vault-triplifier', () => ({
-  nameToUri: vi.fn((name) => `file://${name}`)
+  nameToUri: vi.fn((name) => `urn:name:${name}`),
+  nameFromUri: vi.fn((term) => {
+    if (term && term.value && term.value.startsWith('urn:name:')) {
+      return term.value.replace('urn:name:', '')
+    }
+    return null
+  }),
+  pathFromUri: vi.fn((term) => {
+    if (term && term.value && term.value.startsWith('urn:resource:')) {
+      return term.value.replace('urn:resource:', '')
+    }
+    return null
+  }),
+  fileUri: vi.fn((path) => `file://${path}`)
 }))
 
 // Mock URI utils
 vi.mock('../../src/lib/uriUtils.js', () => ({
-  isVaultUri: vi.fn((uri) => {
-    return uri.startsWith('file://') || uri.startsWith('urn:name:') || uri.startsWith('vault://')
+  isClickableUri: vi.fn((term, app) => {
+    if (!term || !term.value) return false
+    return term.value.startsWith('file://') || term.value.startsWith('urn:name:')
   }),
-  getTitleFromInternalUri: vi.fn((uri) => {
-    if (uri.startsWith('urn:name:')) return uri.replace('urn:name:', '')
-    if (uri.startsWith('file://')) {
-      const path = uri.replace('file://', '')
+  isPropertyUri: vi.fn((term) => {
+    return term && term.value && term.value.startsWith('urn:property:')
+  }),
+  getPropertyFromUri: vi.fn((term) => {
+    if (term && term.value && term.value.startsWith('urn:property:')) {
+      return term.value.replace('urn:property:', '')
+    }
+    return null
+  }),
+  isVaultUri: vi.fn((term, app) => {
+    if (!term || !term.value) return false
+    return term.value.startsWith('file://') || term.value.startsWith('urn:name:') || term.value.startsWith('urn:property:')
+  }),
+  getTitleFromUri: vi.fn((term, app) => {
+    const { nameFromUri } = require('vault-triplifier')
+    
+    if (!term || !term.value) return 'Unknown'
+    
+    const name = nameFromUri(term)
+    if (name) return name
+    
+    if (term.value.startsWith('file://')) {
+      const path = term.value.replace('file://', '')
       const filename = path.includes('/') ? path.split('/').pop() : path
       return filename.endsWith('.md') ? filename.replace('.md', '') : filename
     }
-    return uri
+    
+    return term.value
   })
 }))
 
