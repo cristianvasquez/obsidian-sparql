@@ -1,9 +1,6 @@
 import {
-  pathFromUri,
   nameFromUri,
-  fileUri,
-  nameToUri,
-  pathToUri,
+  nameToUri
 } from 'vault-triplifier'
 import rdf from 'rdf-ext'
 import { isFileInVault, isNoteInVault } from './obsidianUtils.js'

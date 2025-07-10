@@ -44,11 +44,22 @@ const runQuery = async (queryType, queryText) => {
 onMounted(async () => {
   try {
     const file = context.app.workspace.getActiveFile()
+    
+    if (!file) {
+      error.value = 'No active file found. Please open a file to run SPARQL queries.'
+      return
+    }
+    
     const absolutePath = getAbsolutePath(file, context.app)
     const replaced = replaceSPARQL(text, file.basename, absolutePath)
     const parsed = parser.parse(replaced)
     tableData.value = await runQuery(parsed.queryType, replaced)
   } catch (err) {
+    console.error('SparqlView error details:', {
+      file: context.app.workspace.getActiveFile(),
+      vaultPath: context.app.vault?.adapter?.path,
+      error: err
+    })
     error.value = err instanceof Error ? err.message : String(err)
   }
 })

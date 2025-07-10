@@ -5,7 +5,15 @@
  * @returns {string} Absolute filesystem path
  */
 export function getAbsolutePath(file, app) {
+  if (!file || !app || !app.vault || !app.vault.adapter) {
+    throw new Error('Invalid file or app provided to getAbsolutePath')
+  }
+  
   const vaultBasePath = app.vault.adapter.path
+  if (!vaultBasePath || !file.path) {
+    throw new Error('Unable to determine vault path or file path')
+  }
+  
   return `${vaultBasePath}/${file.path}`
 }
 
