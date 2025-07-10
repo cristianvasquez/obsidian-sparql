@@ -11,21 +11,10 @@ if you want to view the source visit the plugins github repository
 */
 `
 
-// Plugin to copy main.js to root after build
-const copyPlugin = () => ({
-  name: 'copy-main',
-  writeBundle() {
-    try {
-      copyFileSync('./dist/main.js', './main.js')
-      console.log('✓ Copied main.js to root directory')
-    } catch (err) {
-      console.error('Failed to copy main.js:', err)
-    }
-  }
-})
+// No longer needed - building directly to root
 
 export default defineConfig({
-  plugins: [vue(), copyPlugin()],
+  plugins: [vue()],
   build: {
     target: 'es2018',
     lib: {
@@ -40,11 +29,12 @@ export default defineConfig({
         exports: 'named',
         globals: {
           obsidian: 'obsidian'
-        }
+        },
+        assetFileNames: 'styles.css'
       }
     },
-    outDir: './dist',
-    emptyOutDir: true,
+    outDir: './',
+    emptyOutDir: false,
     sourcemap: isProd ? false : 'inline',
     minify: isProd
   },

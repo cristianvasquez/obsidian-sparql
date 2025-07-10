@@ -7,13 +7,12 @@ import {
   Notice,
 } from 'obsidian'
 import { createApp } from 'vue'
-import { fileUri } from 'vault-triplifier'
 
 import TriplesView from './components/App.vue'
 import SparqlView from './components/SparqlView.vue'
 import SparqlViewDebug from './components/SparqlViewDebug.vue'
 import Client from 'sparql-http-client/ParsingClient'
-import { getTemplate, replaceSPARQL } from './lib/templates.js'
+import { getTemplate } from './lib/templates.js'
 import Triplestore from './lib/Triplestore.js'
 import { ns } from './namespaces.js'
 import { EventEmitter } from './lib/EventEmitter.js'
@@ -131,7 +130,9 @@ export default class Prototype_11 extends Plugin {
       modal.innerHTML = `
         <div class="modal" style="padding: 20px; max-width: 80%; max-height: 80%; overflow: auto; background: var(--background-primary); border-radius: 8px;">
           <h3>Sync Output</h3>
-          <pre style="background: var(--background-secondary); padding: 10px; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;">${stdout}${stderr ? '\nSTDERR:\n' + stderr : ''}</pre>
+          <pre style="background: var(--background-secondary); padding: 10px; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;">${stdout}${stderr
+        ? '\nSTDERR:\n' + stderr
+        : ''}</pre>
           <button class="mod-cta" onclick="this.closest('.modal-bg').remove()">Close</button>
         </div>
       `
@@ -230,9 +231,9 @@ class SampleSettingTab extends PluginSettingTab {
 
     const addTextSetting = (name, desc, key) => {
       new Setting(containerEl).setName(name).setDesc(desc).addText((text) => {
-        text.setValue(client[key])
-          .setPlaceholder('')
-          .onChange(async (value) => {
+        text.setValue(client[key]).
+          setPlaceholder('').
+          onChange(async (value) => {
             client[key] = value
             await this.plugin.saveSettings()
           })
@@ -259,13 +260,12 @@ class SampleSettingTab extends PluginSettingTab {
         })
       })
 
-    new Setting(containerEl)
-      .setName('Sync command')
-      .setDesc('Shell command to sync with triplestore')
-      .addText((text) => {
-        text.setValue(this.plugin.settings.syncCommand)
-          .setPlaceholder('osg global sync experiments-showcase')
-          .onChange(async (value) => {
+    new Setting(containerEl).setName('Sync command').
+      setDesc('Shell command to sync with triplestore').
+      addText((text) => {
+        text.setValue(this.plugin.settings.syncCommand).
+          setPlaceholder('osg global sync experiments-showcase').
+          onChange(async (value) => {
             this.plugin.settings.syncCommand = value
             await this.plugin.saveSettings()
           })

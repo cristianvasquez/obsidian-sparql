@@ -1,4 +1,4 @@
-import { fileUri, nameFromUri, nameToUri } from 'vault-triplifier'
+import { nameToUri, fileUri } from 'vault-triplifier'
 
 function getTemplate () {
   return `SELECT * WHERE {
@@ -19,15 +19,14 @@ export function replaceInternalLinks (text, replacer) {
   })
 }
 
-function replaceSPARQL (sparql, activeFile) {
+function replaceSPARQL (sparql, fileName, absolutePath) {
 
   if (sparql.includes(THIS)) {
-    const name = activeFile.basename
-    sparql = sparql.replaceAll(THIS, `<${nameToUri(name)}>`)
+    sparql = sparql.replaceAll(THIS, `<${nameToUri(fileName)}>`)
   }
 
   if (sparql.includes(THIS_DOC)) {
-    sparql = sparql.replaceAll(THIS_DOC, `<${fileUri(activeFile)}>`)
+    sparql = sparql.replaceAll(THIS_DOC, `<${fileUri(absolutePath)}>`)
   }
 
   const replacer = (str) => {

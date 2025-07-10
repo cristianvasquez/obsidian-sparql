@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Vue App Component</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <h2>App Component Test</h2>
+        <button @click="triggerUpdate">Trigger File Update</button>
+        <div>
+            <pre>{{ result }}</pre>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue
+
+        // Simple mock EventEmitter
+        class EventEmitter {
+            constructor() {
+                this.events = {}
+            }
+            on(event, callback) {
+                if (!this.events[event]) this.events[event] = []
+                this.events[event].push(callback)
+            }
+            emit(event, ...args) {
+                if (this.events[event]) {
+                    this.events[event].forEach(cb => cb(...args))
+                }
+            }
+        }
+
+        // Simple mock VaultTriplifier
+        class VaultTriplifier {
+            async triplifyContent(content, path) {
+                return {
+                    term: `file://${path}`,
+                    dataset: {
+                        toString: () => `<file://${path}> <type> <File> .\n<file://${path}> <content> "${content}" .`
+                    }
+                }
+            }
+        }
+
+        // Mock context
+        const mockContext = {
+            app: {
+                vault: {
+                    read: async (file) => `# ${file.path}\n\nTest content for ${file.path}`
+                }
+            },
+            events: new EventEmitter()
+        }
+
+        createApp({
+            setup() {
+                const result = ref('')
+                const triplifier = new VaultTriplifier()
+
+                const triplifyFile = async (file) => {
+                    try {
+                        const content = await mockContext.app.vault.read(file)
+                        const { term, dataset } = await triplifier.triplifyContent(content, file.path)
+                        result.value = dataset.toString()
+                    } catch (err) {
+                        result.value = 'Error: ' + err.message
+                    }
+                }
+
+                onMounted(() => {
+                    mockContext.events.on('update', triplifyFile)
+                })
+
+                const triggerUpdate = () => {
+                    mockContext.events.emit('update', { path: 'test-file.md' })
+                }
+
+                return { result, triggerUpdate }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>

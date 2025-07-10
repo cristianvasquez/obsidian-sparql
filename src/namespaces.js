@@ -1,6 +1,6 @@
 import rdf from 'rdf-ext'
 
-const VAULT_NAMESPACE = 'http://notes/'
+const VAULT_NAMESPACE = 'urn:name:'
 
 // Create rdf-ext namespace objects
 const ns = {
@@ -24,13 +24,14 @@ const ns = {
   solid: rdf.namespace('http://www.w3.org/ns/solid/terms#'),
   acl: rdf.namespace('http://www.w3.org/ns/auth/acl#'),
   vault: rdf.namespace('http://vault.org/'),
+  dot: rdf.namespace('http://pkm-united.org/'),
   this: rdf.namespace(VAULT_NAMESPACE)
 }
 
 // Build prefixes from namespace objects for shrinking URIs
 const prefixes = {}
 for (const [prefix, namespace] of Object.entries(ns)) {
-  prefixes[namespace.value] = prefix + ':'
+  prefixes[namespace().value] = prefix + ':'
 }
 prefixes['file://'] = ''
 
