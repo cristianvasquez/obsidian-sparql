@@ -1,4 +1,5 @@
 import { nameToUri, fileUri } from 'vault-triplifier'
+import { getNameFromPath } from './uriUtils.js'
 
 function getTemplate () {
   return `SELECT * WHERE {
@@ -9,8 +10,7 @@ function getTemplate () {
 }
 
 const THIS = '__THIS__'
-
-const THIS_DOC = '__THIS_DOC__'
+const DOC = '__DOC__'
 
 export function replaceInternalLinks (text, replacer) {
   // Simple regex to find [[link]] patterns
@@ -19,14 +19,17 @@ export function replaceInternalLinks (text, replacer) {
   })
 }
 
-function replaceSPARQL (sparql, fileName, absolutePath) {
+function replaceSPARQL (sparql, absolutePath) {
 
-  if (sparql.includes(THIS)) {
-    sparql = sparql.replaceAll(THIS, `<${nameToUri(fileName)}>`)
-  }
+  if (absolutePath) {
+    if (sparql.includes(THIS)) {
+      const name = getNameFromPath(absolutePath)
+      sparql = sparql.replaceAll(THIS, `<${nameToUri(name)}>`)
+    }
 
-  if (sparql.includes(THIS_DOC)) {
-    sparql = sparql.replaceAll(THIS_DOC, `<${fileUri(absolutePath)}>`)
+    if (sparql.includes(DOC)) {
+      sparql = sparql.replaceAll(DOC, `<${fileUri(absolutePath)}>`)
+    }
   }
 
   const replacer = (str) => {

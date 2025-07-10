@@ -2,8 +2,15 @@
 import { inject, onMounted, ref, computed } from 'vue'
 import { Parser } from 'sparqljs'
 import { replaceSPARQL } from '../lib/templates.js'
-import { getAbsolutePath } from '../lib/obsidianUtils.js'
 import SimpleTable from './SimpleTable.vue'
+
+// Props
+const props = defineProps({
+  debug: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 // Injected
 const text = inject('text')
@@ -12,6 +19,7 @@ const context = inject('context')
 // State
 const tableData = ref(null)
 const error = ref(null)
+const replacedQuery = ref(null)
 
 // Constants
 const parser = new Parser({ skipValidation: true, sparqlStar: true })
@@ -43,22 +51,18 @@ const runQuery = async (queryType, queryText) => {
 
 onMounted(async () => {
   try {
-    const file = context.app.workspace.getActiveFile()
-    
-    if (!file) {
-      error.value = 'No active file found. Please open a file to run SPARQL queries.'
-      return
-    }
-    
-    const absolutePath = getAbsolutePath(file, context.app)
-    const replaced = replaceSPARQL(text, file.basename, absolutePath)
+    const activeFileName = context.app.workspace.getActiveFile().path
+    const absolutePath = context.app.vault.adapter.getFullPath(activeFileName)
+    const replaced = replaceSPARQL(text, absolutePath)
+    replacedQuery.value = replaced
+
     const parsed = parser.parse(replaced)
     tableData.value = await runQuery(parsed.queryType, replaced)
   } catch (err) {
     console.error('SparqlView error details:', {
       file: context.app.workspace.getActiveFile(),
       vaultPath: context.app.vault?.adapter?.path,
-      error: err
+      error: err,
     })
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -67,10 +71,21 @@ onMounted(async () => {
 
 <template>
   <div class="sparql-query-component">
+
+    <!-- Debug header: show the resolved query when debug=true -->
+    <div v-if="debug && replacedQuery" class="debug-header">
+      <details>
+        <summary>query</summary>
+        <pre class="debug-query">{{ replacedQuery }}</pre>
+      </details>
+    </div>
+
+    <!-- Query results (always shown unless error) -->
     <SimpleTable v-if="tableData" :header="tableData.header" :rows="tableData.rows"/>
     <p v-if="tableData && !hasResults" class="no-results">No results found</p>
 
-    <div v-else-if="error" class="error">
+    <!-- Error display -->
+    <div v-if="error" class="error">
       <pre>{{ error }}</pre>
     </div>
   </div>
@@ -81,5 +96,23 @@ onMounted(async () => {
   color: red;
   white-space: pre-wrap;
   margin-top: 1rem;
+}
+
+.debug-header {
+  margin-bottom: 1rem;
+}
+
+.debug-query {
+  background: var(--background-secondary);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  overflow-x: auto;
+}
+
+details summary {
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
 }
 </style>

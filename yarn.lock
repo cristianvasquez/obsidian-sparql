@@ -877,7 +877,7 @@
   dependencies:
     "@vue/shared" "3.5.17"
 
-"@vue/runtime-core@3.5.17":
+"@vue/runtime-core@^3.5.17", "@vue/runtime-core@3.5.17":
   version "3.5.17"
   resolved "https://registry.npmjs.org/@vue/runtime-core/-/runtime-core-3.5.17.tgz"
   integrity sha512-QQLXa20dHg1R0ri4bjKeGFKEkJA7MMBxrKo2G+gJikmumRS7PTD4BOU9FKrDQWMKowz7frJJGqBffYMgQYS96Q==

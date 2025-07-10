@@ -1,8 +1,9 @@
 <script setup>
+import { propertyFromUri } from 'vault-triplifier'
 import InternalLink from './helpers/InternalLink.vue'
 import { shrink } from './helpers/utils.js'
-import { isClickableUri, isPropertyUri, getPropertyFromUri } from '../lib/uriUtils.js'
-import { toRaw, ref, inject } from 'vue'
+import { isFileUri, isNameUri, peekTerm } from '../lib/uriUtils.js'
+import { ref, inject } from 'vue'
 
 const props = defineProps({
   header: {
@@ -16,34 +17,10 @@ const props = defineProps({
 })
 
 const error = ref(null)
+const context = inject('context')
 
-const isClickableInternal = (term) => {
-  try {
-    const context = inject('context')
-    return isClickableUri(toRaw(term), context?.app)
-  } catch (err) {
-    console.error('Error in isClickableInternal:', err)
-    error.value = `Error checking if term is clickable: ${err.message}`
-    return false
-  }
-}
-
-function isProperty (term) {
-  try {
-    return isPropertyUri(term)
-  } catch (err) {
-    console.error('Error in isProperty:', err)
-    return false
-  }
-}
-
-function getPropertyName (term) {
-  try {
-    return getPropertyFromUri(term)
-  } catch (err) {
-    console.error('Error in getPropertyName:', err)
-    return term.value || 'Error'
-  }
+function isClickable (term) {
+  return isFileUri(term) || isNameUri(term)
 }
 
 function renderTerm (term) {
@@ -58,11 +35,7 @@ function renderTerm (term) {
 
     // For NamedNodes, check if they are special vault URIs
     if (term.termType === 'NamedNode') {
-      if (isProperty(term)) {
-        return getPropertyName(term)
-      }
-      // For other NamedNodes (external URIs), use shrink
-      return shrink(term.value)
+      return propertyFromUri(term) ?? shrink(term.value)
     }
 
     // Fallback for other term types (BlankNodes, etc.)
@@ -91,8 +64,8 @@ function renderTerm (term) {
     </thead>
     <tr v-for="row of props.rows">
       <td v-for="term of row">
-        <template v-if="isClickableInternal(term)">
-          <internal-link :linkTo="term" class="clickable"/>
+        <template v-if="isClickable(term)">
+          <internal-link :peekInfo="peekTerm(term, context.app)" class="clickable"/>
         </template>
         <template v-else>
           {{ renderTerm(term) }}

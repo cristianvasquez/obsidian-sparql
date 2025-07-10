@@ -1,20 +1,13 @@
 import { prefixes } from '../../namespaces.js'
 
-/**
- * Shrink URIs for display purposes
- * @param {string} uri - URI to shrink
- * @returns {string} Shortened URI
- */
-function shrink (uri) {
-  if (typeof uri !== 'string') return uri
+function shrink (uriStr) {
 
   for (const [namespace, prefix] of Object.entries(prefixes)) {
-    if (uri.startsWith(namespace)) {
-      return uri.replace(namespace, prefix)
+    if (uriStr.startsWith(namespace)) {
+      return uriStr.replace(namespace, prefix)
     }
   }
-
-  return uri
+  return uriStr
 }
 
 export { shrink }

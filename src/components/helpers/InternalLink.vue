@@ -1,87 +1,102 @@
+<!-- InternalLink.vue -->
 <script setup>
-import { openOrSwitch, hoverPreview, isInVault } from 'obsidian-community-lib'
-import { inject } from '@vue/runtime-core'
-import { getTitleFromUri, getPathFromFileUri, getNameFromNameUri, isNameResolved, isNameUri } from '../../lib/uriUtils.js'
-
-const getFileTitle = (linkToTerm) => getTitleFromUri(linkToTerm, context.app)
-
-const getFilePath = (linkToTerm) => {
-  const name = getNameFromNameUri(linkToTerm)
-  if (name) return name
-  
-  const path = getPathFromFileUri(linkToTerm)
-  if (path) {
-    const fileName = path.split('/').pop()
-    return fileName.endsWith('.md') ? fileName.replace(/\.md$/, '') : fileName
-  }
-  
-  return 'Unknown'
-}
-
-const SIDE_VIEW_ID = `obsidian-sparql-sideview`
+import { openOrSwitch, hoverPreview } from 'obsidian-community-lib'
+import { inject, computed } from 'vue'
+import {
+  getTitleFromUri,
+} from '../../lib/uriUtils.js'
 
 const context = inject('context')
 
 const props = defineProps({
-  linkTo: {
-    type: Object, // Now expects a Term object
-    required: true,
+  peekInfo: {
+    type: Object,
   },
 })
 
-async function open (event) {
+// Computed properties for cleaner template
+const title = computed(() => getTitleFromUri(props.peekInfo.term))
+
+const isResolved = computed(() => {
+  if (!context?.app) return false
+
+  return context.app.vault.getAbstractFileByPath(props.peekInfo.absPath) !== null
+})
+
+// Get the path to open - handles both name and file URIs
+const getOpenablePath = () => {
+  if (props.peekInfo) {
+    return props.peekInfo.normalized
+  }
+  return null
+}
+
+// Event handlers
+async function handleClick (event) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  const path = getOpenablePath()
+  if (!path) {
+    console.warn('No valid path to open for:', props.linkTo)
+    return
+  }
+
   try {
-    const filePath = getFilePath(props.linkTo)
-    
-    if (!filePath || typeof filePath !== 'string') {
-      console.error('Invalid file path for opening:', filePath)
-      return
-    }
-    
-    // Use openOrSwitch with correct parameters: dest, event, options
-    await openOrSwitch(filePath, event, { createNewFile: true })
+    // openOrSwitch expects: filePath, event, options
+    await openOrSwitch(path, event, {
+      createNewFile: true, // Create file if it doesn't exist (for unresolved names)
+    })
   } catch (error) {
-    console.error('Error opening file:', error)
+    console.error('Failed to open file:', error)
+    // Could show a notice to user here
+    context.app?.workspace?.showNotice?.(`Failed to open: ${path}`)
   }
 }
 
-async function hover (event) {
+async function handleMouseOver (event) {
+  const path = getOpenablePath()
+  if (!path) return
+
   try {
-    const filePath = getFilePath(props.linkTo)
-    
-    if (!filePath || typeof filePath !== 'string') {
-      console.error('Invalid file path for hover:', filePath)
-      return
-    }
-    
-    // Use a simple mock view object for hoverPreview
-    const mockView = {
+    // Create a minimal view object for hoverPreview
+    const view = {
       app: context.app,
-      getViewType: () => 'sparql-internal-link'
+      getViewType: () => 'sparql-internal-link',
     }
-    
-    hoverPreview(event, mockView, filePath)
+
+    hoverPreview(event, view, path)
   } catch (error) {
-    console.error('Error showing hover preview:', error)
+    // Hover preview errors are non-critical, just log them
+    console.debug('Hover preview failed:', error)
   }
 }
-
-const checkIsInVault = () => {
-  if (isNameUri(props.linkTo)) {
-    return isNameResolved(props.linkTo, context.app)
-  }
-  
-  const filePath = getFilePath(props.linkTo)
-  return filePath !== 'Unknown' && isInVault(filePath)
-}
-
 </script>
 
 <template>
-        <span
-            class="internal-link"
-            :class="checkIsInVault()?'':'is-unresolved'"
-            @click="open"
-            @mouseover="hover"
-        >{{ getFileTitle(props.linkTo) }}</span>
+  <a
+      class="internal-link"
+      :class="{ 'is-unresolved': !isResolved }"
+      :data-href="title"
+      :aria-label="`Open ${title}`"
+      href="#"
+      @click="handleClick"
+      @mouseover="handleMouseOver"
+  >
+    {{ title }}
+  </a>
 </template>
+
+<style scoped>
+/* Use Obsidian's built-in internal link styles */
+.internal-link {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.internal-link:hover {
+  text-decoration: underline;
+}
+
+/* Obsidian will apply its own styles for .is-unresolved */
+</style>

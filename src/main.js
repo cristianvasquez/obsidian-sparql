@@ -8,9 +8,8 @@ import {
 } from 'obsidian'
 import { createApp } from 'vue'
 
-import TriplesView from './components/App.vue'
+import DebugPanel from './components/DebugPanel.vue'
 import SparqlView from './components/SparqlView.vue'
-import SparqlViewDebug from './components/SparqlViewDebug.vue'
 import Client from 'sparql-http-client/ParsingClient'
 import { getTemplate } from './lib/templates.js'
 import Triplestore from './lib/Triplestore.js'
@@ -52,7 +51,7 @@ export default class Prototype_11 extends Plugin {
       plugin: this,
     }
 
-    const debugApp = createApp(TriplesView)
+    const debugApp = createApp(DebugPanel)
     debugApp.provide('context', appContext)
     this.vueApp = debugApp
     this.registerView(SIDE_VIEW_ID,
@@ -66,7 +65,7 @@ export default class Prototype_11 extends Plugin {
     })
 
     this.registerMarkdownCodeBlockProcessor('osg-debug', (source, el) => {
-      const sparqlApp = createApp(SparqlViewDebug)
+      const sparqlApp = createApp(SparqlView, { debug: true })
       sparqlApp.provide('context', appContext)
       sparqlApp.provide('text', source)
       sparqlApp.mount(el)

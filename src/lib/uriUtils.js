@@ -1,52 +1,80 @@
-import {
-  nameFromUri,
-  nameToUri
-} from 'vault-triplifier'
-import rdf from 'rdf-ext'
-import { isFileInVault, isNoteInVault } from './obsidianUtils.js'
+import { nameFromUri } from 'vault-triplifier'
+import { normalizePath } from 'obsidian'
 
-export const isFileUri = (term) => 
-  term?.termType === 'NamedNode' && term.value.startsWith('file://')
+export function getNameFromPath (filePath) {
+  const fileName = filePath.split('/').pop() || ''
+  return fileName.endsWith('.md')
+    ? fileName.slice(0, -3)
+    : fileName
+}
 
-export const isNameUri = (term) => 
-  term?.termType === 'NamedNode' && nameFromUri(term) !== null
+export function isFileUri (term) {
+  return term?.termType === 'NamedNode' &&
+    term.value?.startsWith('file://')
+}
 
-export const isFileInCurrentVault = (term, app) => 
-  isFileUri(term) && app && isFileInVault(new URL(term.value).pathname, app)
+export function isNameUri (term) {
+  return term?.termType === 'NamedNode' && nameFromUri(term) !== null
+}
 
-export const isNameResolved = (term, app) => {
-  if (!isNameUri(term) || !app) return false
+/**
+ * Get human-readable title from any URI
+ */
+export function getTitleFromUri (term) {
+  if (!term) return 'Unknown'
+
+  // Try name URI first
   const name = nameFromUri(term)
-  return name && isNoteInVault(name, app)
-}
-
-export const getPathFromFileUri = (term) => 
-  isFileUri(term) ? new URL(term.value).pathname : null
-
-export const getNameFromNameUri = (term) => 
-  isNameUri(term) ? nameFromUri(term) : null
-
-export const getTitleFromUri = (term, app) => {
-  const name = getNameFromNameUri(term)
   if (name) return name
-  
+
+  // Try file URI
   const path = getPathFromFileUri(term)
-  if (path) {
-    const fileName = path.split('/').pop()
-    return fileName.endsWith('.md') ? fileName.replace(/\.md$/, '') : fileName
-  }
-  
-  return term?.value || 'Unknown'
+  if (path) return getNameFromPath(path)
+
+  // Fallback
+  return term.value || 'Unknown'
 }
 
-export const isPropertyUri = (term) =>
-  term?.termType === 'NamedNode' && term.value.startsWith('urn:property:')
+function getPathFromFileUri (term) {
+  const url = new URL(term.value)
+  return decodeURIComponent(url.pathname)  // <-- this gives correct file path
+}
 
-export const getPropertyFromUri = (term) =>
-  isPropertyUri(term) ? term.value.replace('urn:property:', '') : null
+function peekTerm (term, app) {
+  if (isNameUri(term)) {
+    const name = nameFromUri(term)
+    const sourcePath = app.workspace.getActiveFile().path
+    const absPath = app.metadataCache.getFirstLinkpathDest(name,
+      sourcePath).path
+    const normalized = normalizePath(absPath)
+    return {
+      term,
+      normalized,
+      absPath,
+    }
+  }
 
-export const isClickableUri = (term, app) => 
-  isFileInCurrentVault(term, app) || isNameUri(term)
+  if (isFileUri(term)) {
+    const absPath = getPathFromFileUri(term)
+    const vaultBase = app.vault.adapter?.basePath ||
+      app.vault.adapter?.getBasePath?.()
 
-export const isVaultUri = (term, app) =>
-  isFileUri(term) || isNameUri(term) || isPropertyUri(term)
+    if (vaultBase && absPath.startsWith(vaultBase)) {
+      let relPath = absPath.slice(vaultBase.length)
+      if (relPath.startsWith('/') || relPath.startsWith('\\')) {
+        relPath = relPath.slice(1)
+      }
+
+      const normalized = normalizePath(relPath)
+      return {
+        term,
+        normalized,
+        absPath,
+        vaultBase,
+      }
+    }
+  }
+  return undefined
+}
+
+export { peekTerm }

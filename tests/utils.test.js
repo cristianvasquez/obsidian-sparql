@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shrink } from '../../../src/components/helpers/utils.js'
+import { shrink } from '../src/components/helpers/utils.js'
 
 describe('utils.js', () => {
   describe('shrink function', () => {
@@ -25,14 +25,6 @@ describe('utils.js', () => {
     it('returns original URI if no matching prefix', () => {
       const unknownUri = 'http://unknown.example.com/resource'
       expect(shrink(unknownUri)).toBe(unknownUri)
-    })
-
-    it('handles non-string input', () => {
-      expect(shrink(null)).toBe(null)
-      expect(shrink(undefined)).toBe(undefined)
-      expect(shrink(123)).toBe(123)
-      expect(shrink({})).toEqual({})
-      expect(shrink([])).toEqual([])
     })
 
     it('handles empty string', () => {
