@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SimpleTable from '../../src/components/SimpleTable.vue'
 import InternalLink from '../../src/components/helpers/InternalLink.vue'
+import { createNamedNode, createLiteral } from '../helpers/testTerms.js'
 
 // Mock the helper components and utilities
 vi.mock('../../src/components/helpers/InternalLink.vue', () => ({
@@ -92,8 +93,8 @@ describe('SimpleTable.vue', () => {
       props: {
         header: ['name', 'age', 'city'],
         rows: [
-          ['John', '30', 'New York'],
-          ['Jane', '25', 'London']
+          [createLiteral('John'), createLiteral('30'), createLiteral('New York')],
+          [createLiteral('Jane'), createLiteral('25'), createLiteral('London')]
         ]
       },
       global: {
@@ -126,8 +127,8 @@ describe('SimpleTable.vue', () => {
       props: {
         header: ['subject'],
         rows: [
-          ['urn:name:MyNote'],
-          ['http://example.com/external']
+          [createNamedNode('urn:name:MyNote')],
+          [createNamedNode('http://example.com/external')]
         ]
       },
       global: {
@@ -156,8 +157,8 @@ describe('SimpleTable.vue', () => {
       props: {
         header: ['uri'],
         rows: [
-          ['http://example.com/resource'],
-          ['http://another.com/item']
+          [createNamedNode('http://example.com/resource')],
+          [createNamedNode('http://another.com/item')]
         ]
       },
       global: {
@@ -212,9 +213,9 @@ describe('SimpleTable.vue', () => {
       props: {
         header: ['uri'],
         rows: [
-          ['urn:name:InternalNote'],
-          ['http://external.com/resource'],
-          ['file:///vault/AnotherNote.md']
+          [createNamedNode('urn:name:InternalNote')],
+          [createNamedNode('http://external.com/resource')],
+          [createNamedNode('file:///vault/AnotherNote.md')]
         ]
       },
       global: {

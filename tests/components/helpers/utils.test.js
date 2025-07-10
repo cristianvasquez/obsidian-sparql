@@ -14,7 +14,7 @@ describe('utils.js', () => {
 
     it('shrinks vault namespace URIs', () => {
       expect(shrink('http://vault.org/note')).toBe('vault:note')
-      expect(shrink('http://notes/MyNote')).toBe('this:MyNote')
+      expect(shrink('urn:name:MyNote')).toBe('this:MyNote')
     })
 
     it('shrinks file:// URIs', () => {
