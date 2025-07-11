@@ -20,9 +20,11 @@
     "@vue/runtime-core": "^3.5.17",
     "obsidian-community-lib": "^2.0.2",
     "rdf-ext": "^2.5.2",
+    "rdf-tree": "^0.2.1",
+    "naive-ui": "^2.41.0",
     "sparql-http-client": "^3.0.1",
     "sparqljs": "^3.7.3",
-    "vault-triplifier": "^2.1.0"
+    "vault-triplifier": "^2.1.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.0",

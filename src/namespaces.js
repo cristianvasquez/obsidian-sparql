@@ -1,7 +1,5 @@
 import rdf from 'rdf-ext'
 
-const VAULT_NAMESPACE = 'urn:name:'
-
 // Create rdf-ext namespace objects
 const ns = {
   rdf: rdf.namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#'),
@@ -23,9 +21,8 @@ const ns = {
   ldp: rdf.namespace('http://www.w3.org/ns/ldp#'),
   solid: rdf.namespace('http://www.w3.org/ns/solid/terms#'),
   acl: rdf.namespace('http://www.w3.org/ns/auth/acl#'),
-  vault: rdf.namespace('http://vault.org/'),
   dot: rdf.namespace('http://pkm-united.org/'),
-  this: rdf.namespace(VAULT_NAMESPACE)
+  name: rdf.namespace('urn:name:'),
 }
 
 // Build prefixes from namespace objects for shrinking URIs

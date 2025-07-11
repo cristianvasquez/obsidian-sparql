@@ -1,4 +1,4 @@
-import { nameToUri, fileUri } from 'vault-triplifier'
+import { nameToUri, fileURLToPath, pathToFileURL } from 'vault-triplifier'
 import { getNameFromPath } from './uriUtils.js'
 
 function getTemplate () {
@@ -28,7 +28,7 @@ function replaceSPARQL (sparql, absolutePath) {
     }
 
     if (sparql.includes(DOC)) {
-      sparql = sparql.replaceAll(DOC, `<${fileUri(absolutePath)}>`)
+      sparql = sparql.replaceAll(DOC, `<${pathToFileURL(absolutePath).value}>`)
     }
   }
 

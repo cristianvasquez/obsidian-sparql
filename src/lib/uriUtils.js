@@ -1,4 +1,4 @@
-import { nameFromUri } from 'vault-triplifier'
+import { nameFromUri, fileURLToPath } from 'vault-triplifier'
 import { normalizePath } from 'obsidian'
 
 export function getNameFromPath (filePath) {
@@ -17,30 +17,11 @@ export function isNameUri (term) {
   return term?.termType === 'NamedNode' && nameFromUri(term) !== null
 }
 
-/**
- * Get human-readable title from any URI
- */
-export function getTitleFromUri (term) {
-  if (!term) return 'Unknown'
-
-  // Try name URI first
-  const name = nameFromUri(term)
-  if (name) return name
-
-  // Try file URI
-  const path = getPathFromFileUri(term)
-  if (path) return getNameFromPath(path)
-
-  // Fallback
-  return term.value || 'Unknown'
-}
-
-function getPathFromFileUri (term) {
-  const url = new URL(term.value)
-  return decodeURIComponent(url.pathname)  // <-- this gives correct file path
-}
-
 function peekTerm (term, app) {
+
+  const vaultBase = app.vault.adapter?.basePath ||
+    app.vault.adapter?.getBasePath?.()
+
   if (isNameUri(term)) {
     const name = nameFromUri(term)
     const sourcePath = app.workspace.getActiveFile().path
@@ -51,14 +32,12 @@ function peekTerm (term, app) {
       term,
       normalized,
       absPath,
+      vaultBase,
     }
   }
 
   if (isFileUri(term)) {
-    const absPath = getPathFromFileUri(term)
-    const vaultBase = app.vault.adapter?.basePath ||
-      app.vault.adapter?.getBasePath?.()
-
+    const absPath = fileURLToPath(term)
     if (vaultBase && absPath.startsWith(vaultBase)) {
       let relPath = absPath.slice(vaultBase.length)
       if (relPath.startsWith('/') || relPath.startsWith('\\')) {
@@ -71,6 +50,7 @@ function peekTerm (term, app) {
         normalized,
         absPath,
         vaultBase,
+        title: getTitleFromUri(term),
       }
     }
   }
