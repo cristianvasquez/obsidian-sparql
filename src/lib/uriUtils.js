@@ -1,60 +1,149 @@
-import { nameFromUri, fileURLToPath } from 'vault-triplifier'
+import {
+  nameFromUri,
+  fileURLToPath,
+  propertyFromUri
+} from 'vault-triplifier'
 import { normalizePath } from 'obsidian'
 
-export function getNameFromPath (filePath) {
+/**
+ * Get the display name from a file path
+ * @param {string} filePath - The file path
+ * @returns {string} The name without .md extension
+ */
+export function getNameFromPath(filePath) {
+  if (!filePath) return ''
   const fileName = filePath.split('/').pop() || ''
-  return fileName.endsWith('.md')
-    ? fileName.slice(0, -3)
-    : fileName
+  return fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName
 }
 
-export function isFileUri (term) {
+/**
+ * Check if a term is a file URI
+ * @param {Object} term - RDF term
+ * @returns {boolean}
+ */
+export function isFileUri(term) {
   return term?.termType === 'NamedNode' &&
-    term.value?.startsWith('file://')
+         term.value?.startsWith('file://')
 }
 
-export function isNameUri (term) {
-  return term?.termType === 'NamedNode' && nameFromUri(term) !== null
+/**
+ * Check if a term is a name URI
+ * @param {Object} term - RDF term
+ * @returns {boolean}
+ */
+export function isNameUri(term) {
+  return term?.termType === 'NamedNode' &&
+         nameFromUri(term) !== null
 }
 
-function peekTerm (term, app) {
+/**
+ * Check if a term is a property URI
+ * @param {Object} term - RDF term
+ * @returns {boolean}
+ */
+export function isPropertyUri(term) {
+  return term?.termType === 'NamedNode' &&
+         propertyFromUri(term) !== null
+}
 
-  const vaultBase = app.vault.adapter?.basePath ||
-    app.vault.adapter?.getBasePath?.()
+/**
+ * Get internal link info from a term
+ * @param {Object} term - RDF term
+ * @param {Object} app - Obsidian app instance
+ * @returns {Object|undefined} Link info or undefined
+ */
+export function getInternalLinkInfo(term, app) {
+  if (!term || !app) return undefined
 
-  if (isNameUri(term)) {
-    const name = nameFromUri(term)
-    const sourcePath = app.workspace.getActiveFile().path
-    const absPath = app.metadataCache.getFirstLinkpathDest(name,
-      sourcePath).path
-    const normalized = normalizePath(absPath)
-    return {
-      term,
-      normalized,
-      absPath,
-      vaultBase,
-    }
-  }
+  try {
+    // Handle name URIs
+    if (isNameUri(term)) {
+      const name = nameFromUri(term)
+      if (!name) return undefined
 
-  if (isFileUri(term)) {
-    const absPath = fileURLToPath(term)
-    if (vaultBase && absPath.startsWith(vaultBase)) {
-      let relPath = absPath.slice(vaultBase.length)
-      if (relPath.startsWith('/') || relPath.startsWith('\\')) {
-        relPath = relPath.slice(1)
-      }
+      // Try to resolve the name to a file
+      const activeFile = app.workspace.getActiveFile()
+      const sourcePath = activeFile?.path || ''
+      const file = app.metadataCache.getFirstLinkpathDest(name, sourcePath)
 
-      const normalized = normalizePath(relPath)
       return {
-        term,
-        normalized,
-        absPath,
-        vaultBase,
-        title: getTitleFromUri(term),
+        type: 'name',
+        name: name,
+        path: file?.path || name, // Use name as path if unresolved
+        resolved: !!file,
+        displayName: name
       }
     }
+
+    // Handle file URIs
+    if (isFileUri(term)) {
+      const absolutePath = fileURLToPath(term)
+      if (!absolutePath) return undefined
+
+      // Get vault base path
+      const vaultBase = app.vault.adapter?.basePath ||
+                       app.vault.adapter?.getBasePath?.() || ''
+
+      // Check if file is in vault
+      if (!vaultBase || !absolutePath.startsWith(vaultBase)) {
+        return undefined
+      }
+
+      // Get relative path
+      let relativePath = absolutePath.slice(vaultBase.length)
+      if (relativePath.startsWith('/') || relativePath.startsWith('\\')) {
+        relativePath = relativePath.slice(1)
+      }
+
+      const normalized = normalizePath(relativePath)
+      const displayName = getNameFromPath(normalized)
+
+      return {
+        type: 'file',
+        name: displayName,
+        path: normalized,
+        resolved: true, // File URIs are always resolved
+        displayName: displayName
+      }
+    }
+
+    return undefined
+  } catch (error) {
+    console.error('Error getting internal link info:', error)
+    return undefined
   }
-  return undefined
 }
 
-export { peekTerm }
+/**
+ * Extract display text from any term
+ * @param {Object} term - RDF term
+ * @returns {string} Display text
+ */
+export function getTermDisplay(term) {
+  if (!term) return ''
+
+  // Handle literals
+  if (term.termType === 'Literal') {
+    return term.value
+  }
+
+  // Handle named nodes
+  if (term.termType === 'NamedNode') {
+    // Try vault-triplifier extraction methods in order
+    const name = nameFromUri(term)
+    if (name !== null) return name
+
+    const property = propertyFromUri(term)
+    if (property !== null) return property
+
+    // Return the URI as-is if no extraction worked
+    return term.value
+  }
+
+  // Handle blank nodes
+  if (term.termType === 'BlankNode') {
+    return `_:${term.value}`
+  }
+
+  return term.value || ''
+}

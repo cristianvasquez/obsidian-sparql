@@ -1,10 +1,16 @@
-import { nameToUri, fileURLToPath, pathToFileURL } from 'vault-triplifier'
+// src/lib/templates.js
+import {
+  nameToUri,
+  fileURLToPath,
+  pathToFileURL,
+  propertyToUri
+} from 'vault-triplifier'
 import { getNameFromPath } from './uriUtils.js'
 
-function getTemplate () {
+function getTemplate() {
   return `SELECT * WHERE {
   GRAPH ?g {
-\t  __THIS__ ?p ?o  
+    __THIS__ ?p ?o
   }
 } LIMIT 10`
 }
@@ -12,31 +18,57 @@ function getTemplate () {
 const THIS = '__THIS__'
 const DOC = '__DOC__'
 
-export function replaceInternalLinks (text, replacer) {
-  // Simple regex to find [[link]] patterns
+/**
+ * Replace [[link]] patterns with URIs
+ */
+export function replaceInternalLinks(text, replacer) {
   return text.replace(/\[\[([^\]]+)\]\]/g, (match, linkText) => {
     return replacer(linkText)
   })
 }
 
-function replaceSPARQL (sparql, absolutePath) {
+/**
+ * Replace property references like {{property:value}}
+ */
+export function replacePropertyReferences(text) {
+  return text.replace(/\{\{([^:]+):([^}]+)\}\}/g, (match, property, value) => {
+    // Convert property to URI using vault-triplifier
+    const propUri = propertyToUri(property.trim())
+    // For values, we'll use nameToUri as a fallback since valueToUri doesn't exist
+    const valueUri = nameToUri(value.trim())
+    return `<${propUri}> <${valueUri}>`
+  })
+}
 
+/**
+ * Replace all template variables in SPARQL query
+ */
+function replaceSPARQL(sparql, absolutePath) {
   if (absolutePath) {
+    // Replace __THIS__ with name URI
     if (sparql.includes(THIS)) {
       const name = getNameFromPath(absolutePath)
-      sparql = sparql.replaceAll(THIS, `<${nameToUri(name)}>`)
+      const nameUri = nameToUri(name)
+      sparql = sparql.replaceAll(THIS, `<${nameUri}>`)
     }
 
+    // Replace __DOC__ with file URI
     if (sparql.includes(DOC)) {
-      sparql = sparql.replaceAll(DOC, `<${pathToFileURL(absolutePath).value}>`)
+      const fileUri = pathToFileURL(absolutePath)
+      sparql = sparql.replaceAll(DOC, `<${fileUri.value}>`)
     }
   }
 
-  const replacer = (str) => {
-    return `<${nameToUri(str)}>`
-  }
+  // Replace [[WikiLinks]] with name URIs
+  sparql = replaceInternalLinks(sparql, (linkText) => {
+    const nameUri = nameToUri(linkText.trim())
+    return `<${nameUri}>`
+  })
 
-  return replaceInternalLinks(sparql, replacer)
+  // Replace {{property:value}} patterns
+  sparql = replacePropertyReferences(sparql)
+
+  return sparql
 }
 
 export { getTemplate, replaceSPARQL }

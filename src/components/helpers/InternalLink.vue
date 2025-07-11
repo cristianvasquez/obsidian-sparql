@@ -1,12 +1,21 @@
-<!-- InternalLink.vue -->
+<!-- src/components/helpers/InternalLink.vue -->
 <script setup>
+import { inject } from 'vue'
 import { openOrSwitch, hoverPreview } from 'obsidian-community-lib'
-import { inject, computed } from 'vue'
 
 const props = defineProps({
-  title: String,
-  path: String,
-  resolved: Boolean
+  title: {
+    type: String,
+    required: true
+  },
+  path: {
+    type: String,
+    required: true
+  },
+  resolved: {
+    type: Boolean,
+    default: true
+  }
 })
 
 const context = inject('context')
@@ -15,14 +24,9 @@ async function handleClick(event) {
   event.preventDefault()
   event.stopPropagation()
 
-  if (!props.path) {
-    console.warn('No valid path to open')
-    return
-  }
-
   try {
     await openOrSwitch(props.path, event, {
-      createNewFile: true
+      createNewFile: !props.resolved // Only create if unresolved
     })
   } catch (error) {
     console.error('Failed to open file:', error)
@@ -31,7 +35,8 @@ async function handleClick(event) {
 }
 
 async function handleMouseOver(event) {
-  if (!props.path) return
+  // Only show preview for resolved files
+  if (!props.resolved) return
 
   try {
     const view = {
@@ -40,7 +45,8 @@ async function handleMouseOver(event) {
     }
     hoverPreview(event, view, props.path)
   } catch (error) {
-    console.debug('Hover preview failed:', error)
+    // Hover preview errors are common and not critical
+    console.debug('Hover preview not available')
   }
 }
 </script>
@@ -49,8 +55,9 @@ async function handleMouseOver(event) {
   <a
     class="internal-link"
     :class="{ 'is-unresolved': !resolved }"
-    :data-href="title"
-    :aria-label="`Open ${title}`"
+    :data-href="path"
+    :aria-label="`${resolved ? 'Open' : 'Create'} ${title}`"
+    :title="resolved ? `Open ${title}` : `Create ${title}`"
     href="#"
     @click="handleClick"
     @mouseover="handleMouseOver"
@@ -63,8 +70,16 @@ async function handleMouseOver(event) {
 .internal-link {
   text-decoration: none;
   cursor: pointer;
+  color: var(--link-color);
 }
+
 .internal-link:hover {
+  color: var(--link-color-hover);
   text-decoration: underline;
+}
+
+.internal-link.is-unresolved {
+  color: var(--link-unresolved-color);
+  opacity: var(--link-unresolved-opacity);
 }
 </style>

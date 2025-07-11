@@ -1,42 +1,73 @@
+<!-- src/components/SimpleTable.vue -->
 <script setup>
-import { propertyFromUri } from "vault-triplifier";
-import InternalLink from "./helpers/InternalLink.vue";
-import { shrink } from "./helpers/utils.js";
-import { isFileUri, isNameUri, peekTerm } from "../lib/uriUtils.js";
-import { ref, inject } from "vue";
-import Term from "./Term.vue";
+import Term from './Term.vue'
 
 const props = defineProps({
-    header: {
-        type: Array,
-        required: true,
-    },
-    rows: {
-        type: Array,
-        required: true,
-    },
-});
-
-const error = ref(null);
+  header: {
+    type: Array,
+    required: true,
+  },
+  rows: {
+    type: Array,
+    required: true,
+  },
+})
 </script>
 
-<!--Perhaps this could be prettier, see:-->
-<!--https://codepen.io/team/Vue/pen/BaKbowJ-->
-
 <template>
-    <div v-if="error">
-        {{ error }}
-    </div>
-    <table v-else>
-        <thead>
-            <tr>
-                <th v-for="header of props.header">{{ header }}</th>
-            </tr>
-        </thead>
-        <tr v-for="row of props.rows">
-            <td v-for="term of row">
-                <Term :term="term"></Term>
-            </td>
+  <div class="table-container">
+    <table class="sparql-table">
+      <thead>
+        <tr>
+          <th v-for="(heading, index) in header" :key="index">
+            {{ heading }}
+          </th>
         </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
+          <td v-for="(term, colIndex) in row" :key="colIndex">
+            <Term v-if="term" :term="term" />
+            <span v-else class="null-value">—</span>
+          </td>
+        </tr>
+      </tbody>
     </table>
+  </div>
 </template>
+
+<style scoped>
+.table-container {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.sparql-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.sparql-table th,
+.sparql-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.sparql-table th {
+  background: var(--background-secondary);
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+}
+
+.sparql-table tr:hover {
+  background: var(--background-secondary);
+}
+
+.null-value {
+  color: var(--text-muted);
+  font-style: italic;
+}
+</style>
