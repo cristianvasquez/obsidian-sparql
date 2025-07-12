@@ -114,32 +114,3 @@ export function getInternalLinkInfo (term, app) {
     return undefined
   }
 }
-
-/**
- * Extract display text from any term
- * @param {Object} term - RDF term
- * @returns {string} Display text
- */
-export function getTermDisplay (term) {
-  if (!term) return ''
-
-  if (term.termType === 'Literal') {
-    return term.value
-  }
-
-  if (term.termType === 'NamedNode') {
-    const name = nameFromUri(term)
-    if (name !== null) return name
-
-    const property = propertyFromUri(term)
-    if (property !== null) return property
-
-    return shrink(term.value)
-  }
-
-  if (term.termType === 'BlankNode') {
-    return `_:${term.value}`
-  }
-
-  return term.value || ''
-}

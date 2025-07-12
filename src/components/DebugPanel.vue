@@ -12,7 +12,7 @@ const rootPointer = ref(null)
 const currentFile = ref(null)
 const error = ref(null)
 const isLoading = ref(false)
-const showTurtle = ref(false)
+const showTurtle = ref(true)
 const version = ref(0)
 
 const loadFile = async (file) => {
@@ -94,6 +94,8 @@ onUnmounted(() => {
             v-if="!showTurtle"
             :key="`tree-${version}`"
             :pointer="rootPointer"
+            :enable-right-click="true"
+            :enable-highlighting="true"
             :termComponent="Term"
         />
         <PrettyTurtle
@@ -105,51 +107,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.debug-panel {
-  padding: 0.5rem;
-  height: 100%;
-  overflow-y: auto;
-}
-
-.file-info {
-  margin-bottom: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  background: var(--background-secondary);
-  border-radius: 4px;
-  color: var(--text-muted);
-  font-size: 0.85em;
-}
-
-.error {
-  color: var(--text-error);
-  padding: 1rem;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-error);
-  border-radius: 4px;
-  margin: 1rem 0;
-}
-
-.loading,
-.no-content {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 2rem;
-}
-
-.view-toggle {
-  margin-bottom: 1rem;
-  text-align: right;
-}
-
-.view-toggle button {
-  background: var(--background-primary);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 5px;
-  padding: 0.3rem 0.75rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-</style>

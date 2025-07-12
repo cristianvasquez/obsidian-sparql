@@ -1,7 +1,7 @@
 <script setup>
 import { inject, onMounted, ref, watch } from 'vue'
 import { MarkdownRenderer } from 'obsidian'
-import { renderMarkdown } from './helpers/renderingUtils.js'
+import { getBasePath, termAsMarkdown } from './helpers/renderingUtils.js'
 
 const props = defineProps({
   header: {
@@ -15,14 +15,18 @@ const props = defineProps({
 })
 
 const context = inject('context')
+const { app } = context
 const containerRef = ref(null)
 
 function generateMarkdownTable (header, rows) {
+
+  const basePath = getBasePath(app)
+
   const escape = (s) => s?.replace(/\|/g, '\\|') ?? ''
   const headerRow = `| ${header.map(escape).join(' | ')} |`
   const dividerRow = `| ${header.map(() => '---').join(' | ')} |`
   const dataRows = rows.map(row =>
-      `| ${row.map(renderMarkdown).join(' | ')} |`,
+      `| ${row.map(term => termAsMarkdown(term, basePath)).join(' | ')} |`,
   )
   return [headerRow, dividerRow, ...dataRows].join('\n')
 }
