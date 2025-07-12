@@ -31,20 +31,20 @@ const hasResults = computed(() => tableData.value?.rows?.length > 0)
 
 // Convert results to table format
 const toTable = {
-  SELECT(results) {
+  SELECT (results) {
     if (!results || results.length === 0) {
       return { header: [], rows: [] }
     }
 
     const header = Object.keys(results[0])
     const rows = results.map(row =>
-      header.map(key => row[key] || null)
+        header.map(key => row[key] || null),
     )
 
     return { header, rows }
   },
 
-  CONSTRUCT(dataset) {
+  CONSTRUCT (dataset) {
     const rows = Array.from(dataset).map(quad => [
       quad.subject,
       quad.predicate,
@@ -53,13 +53,13 @@ const toTable = {
 
     return {
       header: ['subject', 'predicate', 'object'],
-      rows
+      rows,
     }
   },
 }
 
 // Run SPARQL query
-async function runQuery(queryType, queryText) {
+async function runQuery (queryType, queryText) {
   const store = context.triplestore
 
   switch (queryType) {
@@ -126,9 +126,9 @@ onMounted(async () => {
     <!-- Results -->
     <template v-else-if="tableData">
       <SimpleTable
-        v-if="hasResults"
-        :header="tableData.header"
-        :rows="tableData.rows"
+          v-if="hasResults"
+          :header="tableData.header"
+          :rows="tableData.rows"
       />
       <p v-else class="no-results">
         No results found

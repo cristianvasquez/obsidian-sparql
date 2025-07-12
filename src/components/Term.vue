@@ -1,13 +1,12 @@
 <!-- src/components/Term.vue -->
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import {
-  getInternalLinkInfo,
   getTermDisplay,
-  isPropertyUri
+  isNameUri,
 } from '../lib/uriUtils.js'
-import { shrink } from './helpers/utils.js'
-import InternalLink from './helpers/InternalLink.vue'
+import { nameFromUri } from 'vault-triplifier'
+import { MarkdownRenderer } from 'obsidian'
 
 const props = defineProps({
   term: {
@@ -28,49 +27,59 @@ const props = defineProps({
   },
 })
 
-const { app } = inject('context')
+const context = inject('context')
+const { app } = context
+const markdownContainer = ref(null)
 
-// Get link info if this term represents an internal link
-const linkInfo = computed(() => getInternalLinkInfo(props.term, app))
+// Check if this is a name URI that should be rendered as markdown link
+const isInternalLink = computed(() => isNameUri(props.term))
 
-// Get display text
-const displayText = computed(() => {
-  // If we have link info, use its display name
-  if (linkInfo.value) {
-    return linkInfo.value.displayName
-  }
-
-  // For properties, use vault-triplifier's extraction
-  if (isPropertyUri(props.term)) {
-    return getTermDisplay(props.term)
-  }
-
-  // For other named nodes, try to shrink using prefixes
-  if (props.term.termType === 'NamedNode') {
-    return shrink(props.term.value)
-  }
-
-  // For everything else, use the generic display function
-  return getTermDisplay(props.term)
-})
+// Get display text for non-link terms
+const displayText = computed(() => getTermDisplay(props.term))
 
 // Determine CSS class based on term type
 const termClass = computed(() => {
-  if (linkInfo.value) return 'term-link'
-  if (isPropertyUri(props.term)) return 'term-property'
+  if (isInternalLink.value) return 'term-link'
   if (props.term.termType === 'Literal') return 'term-literal'
   return 'term-uri'
+})
+
+// Render markdown link using MarkdownRenderer
+const renderMarkdown = async () => {
+  if (isInternalLink.value && markdownContainer.value) {
+    const noteName = nameFromUri(props.term)
+    const markdown = `[[${noteName}]]`
+    
+    markdownContainer.value.innerHTML = ''
+    
+    try {
+      await MarkdownRenderer.render(
+        context.app,
+        markdown,
+        markdownContainer.value,
+        '',
+        context.plugin
+      )
+    } catch (error) {
+      console.error('Failed to render markdown link:', error)
+      // Fallback to plain text
+      markdownContainer.value.textContent = noteName
+    }
+  }
+}
+
+onMounted(() => {
+  console.log('Hey')
+  console.log('Term.vue mounted:', props.term.value, 'isInternalLink:', isInternalLink.value)
+  if (isInternalLink.value) {
+    renderMarkdown()
+  }
 })
 </script>
 
 <template>
-  <!-- Render as internal link if we have link info -->
-  <InternalLink
-    v-if="linkInfo"
-    :title="displayText"
-    :path="linkInfo.path"
-    :resolved="linkInfo.resolved"
-  />
+  <!-- Render as markdown link for name URIs -->
+  <span v-if="isInternalLink" ref="markdownContainer" class="term-markdown-link"></span>
 
   <!-- Otherwise render as plain text with appropriate styling -->
   <span v-else :class="['term-text', termClass]">
@@ -81,11 +90,6 @@ const termClass = computed(() => {
 <style scoped>
 .term-text {
   word-break: break-word;
-}
-
-.term-property {
-  color: var(--text-accent);
-  font-style: italic;
 }
 
 .term-literal {

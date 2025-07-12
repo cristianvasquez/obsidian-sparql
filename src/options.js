@@ -3,10 +3,10 @@ const options = {
   partitionBy: ['headers-all', 'identifier'],
 
   // Include labels for better readability
-  includeLabelsFor: ['documents', 'sections', 'properties'],
+  includeLabelsFor: [],
 
   // Include selectors for debugging
-  includeSelectors: true,
+  includeSelectors: false,
 
   // Don't include raw content by default
   includeRaw: false,

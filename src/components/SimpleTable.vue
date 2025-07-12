@@ -1,6 +1,7 @@
-<!-- src/components/SimpleTable.vue -->
 <script setup>
-import Term from './Term.vue'
+import { inject, onMounted, ref, watch } from 'vue'
+import { MarkdownRenderer } from 'obsidian'
+import { renderMarkdown } from './helpers/renderingUtils.js'
 
 const props = defineProps({
   header: {
@@ -12,62 +13,47 @@ const props = defineProps({
     required: true,
   },
 })
+
+const context = inject('context')
+const containerRef = ref(null)
+
+function generateMarkdownTable (header, rows) {
+  const escape = (s) => s?.replace(/\|/g, '\\|') ?? ''
+  const headerRow = `| ${header.map(escape).join(' | ')} |`
+  const dividerRow = `| ${header.map(() => '---').join(' | ')} |`
+  const dataRows = rows.map(row =>
+      `| ${row.map(renderMarkdown).join(' | ')} |`,
+  )
+  return [headerRow, dividerRow, ...dataRows].join('\n')
+}
+
+async function renderTable () {
+  if (!containerRef.value) return
+
+  containerRef.value.innerHTML = '' // Clear old content
+  const md = generateMarkdownTable(props.header, props.rows)
+
+  try {
+    await MarkdownRenderer.render(
+        context.app,
+        md,
+        containerRef.value,
+        '',
+        context.plugin,
+    )
+  } catch (error) {
+    console.error('Failed to render markdown table:', error)
+    // Fallback to plain text
+    const pre = document.createElement('pre')
+    pre.textContent = md
+    containerRef.value.appendChild(pre)
+  }
+}
+
+onMounted(renderTable)
+watch(() => [props.header, props.rows], renderTable, { deep: true })
 </script>
 
 <template>
-  <div class="table-container">
-    <table class="sparql-table">
-      <thead>
-        <tr>
-          <th v-for="(heading, index) in header" :key="index">
-            {{ heading }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
-          <td v-for="(term, colIndex) in row" :key="colIndex">
-            <Term v-if="term" :term="term" />
-            <span v-else class="null-value">—</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="markdown-table-render" ref="containerRef"></div>
 </template>
-
-<style scoped>
-.table-container {
-  overflow-x: auto;
-  margin: 1rem 0;
-}
-
-.sparql-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95em;
-}
-
-.sparql-table th,
-.sparql-table td {
-  padding: 0.5rem;
-  text-align: left;
-  border: 1px solid var(--background-modifier-border);
-}
-
-.sparql-table th {
-  background: var(--background-secondary);
-  font-weight: 500;
-  position: sticky;
-  top: 0;
-}
-
-.sparql-table tr:hover {
-  background: var(--background-secondary);
-}
-
-.null-value {
-  color: var(--text-muted);
-  font-style: italic;
-}
-</style>

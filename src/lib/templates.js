@@ -1,18 +1,22 @@
 // src/lib/templates.js
 import {
   nameToUri,
-  fileURLToPath,
   pathToFileURL,
-  propertyToUri
+  propertyToUri,
 } from 'vault-triplifier'
 import { getNameFromPath } from './uriUtils.js'
 
-function getTemplate() {
+function getTemplate () {
   return `SELECT * WHERE {
-  GRAPH ?g {
-    __THIS__ ?p ?o
-  }
-} LIMIT 10`
+  PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+  PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  PREFIX prov: <http://www.w3.org/ns/prov#>
+  PREFIX dot: <http://pkm-united.org/>
+  
+    GRAPH ?g {
+      __THIS__ ?p ?o
+    }
+  } LIMIT 10`
 }
 
 const THIS = '__THIS__'
@@ -21,7 +25,7 @@ const DOC = '__DOC__'
 /**
  * Replace [[link]] patterns with URIs
  */
-export function replaceInternalLinks(text, replacer) {
+export function replaceInternalLinks (text, replacer) {
   return text.replace(/\[\[([^\]]+)\]\]/g, (match, linkText) => {
     return replacer(linkText)
   })
@@ -30,7 +34,7 @@ export function replaceInternalLinks(text, replacer) {
 /**
  * Replace property references like {{property:value}}
  */
-export function replacePropertyReferences(text) {
+export function replacePropertyReferences (text) {
   return text.replace(/\{\{([^:]+):([^}]+)\}\}/g, (match, property, value) => {
     // Convert property to URI using vault-triplifier
     const propUri = propertyToUri(property.trim())
@@ -43,7 +47,7 @@ export function replacePropertyReferences(text) {
 /**
  * Replace all template variables in SPARQL query
  */
-function replaceSPARQL(sparql, absolutePath) {
+function replaceSPARQL (sparql, absolutePath) {
   if (absolutePath) {
     // Replace __THIS__ with name URI
     if (sparql.includes(THIS)) {

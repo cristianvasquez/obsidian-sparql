@@ -1,16 +1,17 @@
 import {
   nameFromUri,
   fileURLToPath,
-  propertyFromUri
+  propertyFromUri,
 } from 'vault-triplifier'
 import { normalizePath } from 'obsidian'
+import { shrink } from '../components/helpers/utils.js'
 
 /**
  * Get the display name from a file path
  * @param {string} filePath - The file path
  * @returns {string} The name without .md extension
  */
-export function getNameFromPath(filePath) {
+export function getNameFromPath (filePath) {
   if (!filePath) return ''
   const fileName = filePath.split('/').pop() || ''
   return fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName
@@ -21,9 +22,9 @@ export function getNameFromPath(filePath) {
  * @param {Object} term - RDF term
  * @returns {boolean}
  */
-export function isFileUri(term) {
+export function isFileUri (term) {
   return term?.termType === 'NamedNode' &&
-         term.value?.startsWith('file://')
+    term.value?.startsWith('file://')
 }
 
 /**
@@ -31,9 +32,9 @@ export function isFileUri(term) {
  * @param {Object} term - RDF term
  * @returns {boolean}
  */
-export function isNameUri(term) {
+export function isNameUri (term) {
   return term?.termType === 'NamedNode' &&
-         nameFromUri(term) !== null
+    nameFromUri(term) !== null
 }
 
 /**
@@ -41,9 +42,9 @@ export function isNameUri(term) {
  * @param {Object} term - RDF term
  * @returns {boolean}
  */
-export function isPropertyUri(term) {
+export function isPropertyUri (term) {
   return term?.termType === 'NamedNode' &&
-         propertyFromUri(term) !== null
+    propertyFromUri(term) !== null
 }
 
 /**
@@ -52,7 +53,7 @@ export function isPropertyUri(term) {
  * @param {Object} app - Obsidian app instance
  * @returns {Object|undefined} Link info or undefined
  */
-export function getInternalLinkInfo(term, app) {
+export function getInternalLinkInfo (term, app) {
   if (!term || !app) return undefined
 
   try {
@@ -71,7 +72,7 @@ export function getInternalLinkInfo(term, app) {
         name: name,
         path: file?.path || name, // Use name as path if unresolved
         resolved: !!file,
-        displayName: name
+        displayName: name,
       }
     }
 
@@ -82,7 +83,7 @@ export function getInternalLinkInfo(term, app) {
 
       // Get vault base path
       const vaultBase = app.vault.adapter?.basePath ||
-                       app.vault.adapter?.getBasePath?.() || ''
+        app.vault.adapter?.getBasePath?.() || ''
 
       // Check if file is in vault
       if (!vaultBase || !absolutePath.startsWith(vaultBase)) {
@@ -103,7 +104,7 @@ export function getInternalLinkInfo(term, app) {
         name: displayName,
         path: normalized,
         resolved: true, // File URIs are always resolved
-        displayName: displayName
+        displayName: displayName,
       }
     }
 
@@ -119,28 +120,23 @@ export function getInternalLinkInfo(term, app) {
  * @param {Object} term - RDF term
  * @returns {string} Display text
  */
-export function getTermDisplay(term) {
+export function getTermDisplay (term) {
   if (!term) return ''
 
-  // Handle literals
   if (term.termType === 'Literal') {
     return term.value
   }
 
-  // Handle named nodes
   if (term.termType === 'NamedNode') {
-    // Try vault-triplifier extraction methods in order
     const name = nameFromUri(term)
     if (name !== null) return name
 
     const property = propertyFromUri(term)
     if (property !== null) return property
 
-    // Return the URI as-is if no extraction worked
-    return term.value
+    return shrink(term.value)
   }
 
-  // Handle blank nodes
   if (term.termType === 'BlankNode') {
     return `_:${term.value}`
   }

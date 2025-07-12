@@ -12,9 +12,9 @@ describe('utils.js', () => {
       expect(shrink('http://schema.org/Person')).toBe('schema:Person')
     })
 
-    it('shrinks vault namespace URIs', () => {
-      expect(shrink('http://vault.org/note')).toBe('vault:note')
-      expect(shrink('urn:name:MyNote')).toBe('this:MyNote')
+    it('shrinks name namespace URIs', () => {
+      expect(shrink('urn:name:MyNote')).toBe('name:MyNote')
+      expect(shrink('http://unknown.org/note')).toBe('http://unknown.org/note')
     })
 
     it('shrinks file:// URIs', () => {
