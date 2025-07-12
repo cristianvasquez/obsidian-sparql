@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
 import { copyFileSync, existsSync } from 'fs'
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -12,7 +11,7 @@ if you want to view the source visit the plugins github repository
 `
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [],
   build: {
     target: 'es2018',
     lib: {

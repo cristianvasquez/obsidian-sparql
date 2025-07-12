@@ -6,17 +6,13 @@ import {
   TFile,
   Notice,
 } from 'obsidian'
-import { createApp } from 'vue'
-
-import DebugPanel from './components/DebugPanel.vue'
-import SparqlView from './components/SparqlView.vue'
+import { renderDebugPanel } from './components/DebugPanel.js'
+import { renderSparqlView } from './components/SparqlView.js'
 import Client from 'sparql-http-client/ParsingClient'
 import { getTemplate } from './lib/templates.js'
 import Triplestore from './lib/Triplestore.js'
 import { ns } from './namespaces.js'
-import { EventEmitter } from './lib/EventEmitter.js'
 
-import './rdf-tree.css'
 
 const PLUGIN_NAME = 'obsidian-sparql'
 
@@ -39,7 +35,6 @@ export default class Prototype_11 extends Plugin {
     console.log(`loading ${PLUGIN_NAME}`)
     await this.loadSettings()
 
-    this.events = new EventEmitter()
     this.triplestore = new Triplestore(
       new Client(this.settings.clientSettings),
     )
@@ -51,32 +46,21 @@ export default class Prototype_11 extends Plugin {
     const appContext = {
       app: this.app,
       triplestore: this.triplestore,
-      events: this.events,
       ns,
       plugin: this,
     }
 
-    const debugApp = createApp(DebugPanel)
-    debugApp.provide('context', appContext)
-
-    this.vueApp = debugApp
     this.registerView(
       SIDE_VIEW_ID,
-      (leaf) => new CurrentFileView(leaf, this.vueApp),
+      (leaf) => new CurrentFileView(leaf, appContext),
     )
 
     this.registerMarkdownCodeBlockProcessor('osg', (source, el) => {
-      const sparqlApp = createApp(SparqlView)
-      sparqlApp.provide('context', appContext)
-      sparqlApp.provide('text', source)
-      sparqlApp.mount(el)
+      renderSparqlView(source, el, appContext, false)
     })
 
     this.registerMarkdownCodeBlockProcessor('osg-debug', (source, el) => {
-      const sparqlApp = createApp(SparqlView, { debug: true })
-      sparqlApp.provide('context', appContext)
-      sparqlApp.provide('text', source)
-      sparqlApp.mount(el)
+      renderSparqlView(source, el, appContext, true)
     })
   }
 
@@ -115,10 +99,16 @@ export default class Prototype_11 extends Plugin {
       return
     }
 
-    const absolutePath = this.app.vault.adapter.getFullPath(activeFile.path)
+    await this.syncCurrentFileSilently(activeFile, true) // true = show notifications
+  }
+
+  async syncCurrentFileSilently (file, showNotifications = false) {
+    const absolutePath = this.app.vault.adapter.getFullPath(file.path)
     const command = `${OSG_PATH} sync --file "${absolutePath}"`
 
-    new Notice(`Syncing ${activeFile.basename}...`)
+    if (showNotifications) {
+      new Notice(`Syncing ${file.basename}...`)
+    }
 
     try {
       const { exec } = require('child_process')
@@ -129,15 +119,23 @@ export default class Prototype_11 extends Plugin {
 
       if (stderr) {
         console.error('Sync stderr:', stderr)
-        new Notice(`Sync completed with warnings`)
+        if (showNotifications) {
+          new Notice(`Sync completed with warnings`)
+        }
       } else {
-        new Notice(`✓ ${activeFile.basename} synced`)
+        if (showNotifications) {
+          new Notice(`✓ ${file.basename} synced`)
+        }
       }
 
       console.log('Sync output:', stdout)
+      return true
     } catch (error) {
-      new Notice(`Sync failed: ${error.message}`)
+      if (showNotifications) {
+        new Notice(`Sync failed: ${error.message}`)
+      }
       console.error('Sync error:', error)
+      return false
     }
   }
 
@@ -199,7 +197,7 @@ export default class Prototype_11 extends Plugin {
   addCommands () {
     this.addCommand({
       id: 'open-obsidian-sparql',
-      name: 'Open sparql',
+      name: 'Open debug panel',
       checkCallback: (checking) => {
         if (this.app.workspace.activeLeaf) {
           if (!checking) this.activateSidePanel()
@@ -236,63 +234,26 @@ export default class Prototype_11 extends Plugin {
       callback: () => this.syncWithTriplestore(),
     })
 
-    // Hook into save command to emit events
-    const saveCommand = this.app.commands?.commands?.['editor:save-file']
-    if (saveCommand?.callback) {
-      const originalCallback = saveCommand.callback
-      saveCommand.callback = async () => {
-        const result = await originalCallback()
-
-        // Emit update event after save
-        const file = this.app.workspace.getActiveFile()
-        if (file) {
-          console.log('Save command: emitting update event', file.path)
-          this.events.emit('update', file)
+    // Simple approach: just use file modification events
+    this.registerEvent(
+      this.app.vault.on('modify', async (file) => {
+        // Always sync when file is modified/saved
+        await this.syncCurrentFileSilently(file)
+        
+        // Update debug panel if open
+        if (this.debugView) {
+          this.debugView.updateAfterSave()
         }
-
-        return result
-      }
-    }
+      })
+    )
   }
 
   registerEvents () {
-    this.registerEvent(
-      this.app.metadataCache.on('changed', (file) => {
-        console.log('Metadata changed:', file.path)
-        this.events.emit('update', file)
-      }),
-    )
-
-    this.registerEvent(
-      this.app.vault.on('modify', (file) => {
-        if (file instanceof TFile) {
-          console.log('File modified:', file.path)
-          this.events.emit('update', file)
-        }
-      }),
-    )
-
-    this.registerEvent(
-      this.app.vault.on('rename', async (file, oldPath) => {
-        if (!(file instanceof TFile)) return
-        console.log('File renamed:', oldPath, '->', file.path)
-        this.events.emit('update', file)
-      }),
-    )
-
-    this.registerEvent(
-      this.app.vault.on('delete', async (file) => {
-        if (!(file instanceof TFile)) return
-        console.log('File deleted:', file.path)
-        this.events.emit('update', undefined)
-      }),
-    )
-
+    // Update debug panel when switching files
     this.registerEvent(
       this.app.workspace.on('file-open', (file) => {
-        if (file) {
-          console.log('File opened:', file.path)
-          this.events.emit('update', file)
+        if (file && this.debugView) {
+          this.debugView.updateForFile()
         }
       }),
     )
@@ -350,9 +311,11 @@ class SampleSettingTab extends PluginSettingTab {
 }
 
 export class CurrentFileView extends ItemView {
-  constructor (leaf, vueApp) {
+  constructor (leaf, appContext) {
     super(leaf)
-    this.vueApp = vueApp
+    this.appContext = appContext
+    this.container = null
+    this.lastUpdateTime = null
   }
 
   getViewType () {
@@ -364,10 +327,28 @@ export class CurrentFileView extends ItemView {
   }
 
   async onOpen () {
-    this.vueApp.mount(this.containerEl.children[1])
+    this.container = this.containerEl.children[1]
+    await renderDebugPanel(this.container, this.appContext)
+    
+    // Store reference in plugin for file change updates
+    this.appContext.plugin.debugView = this
   }
 
   async onClose () {
-    this.vueApp.unmount()
+    // Remove reference from plugin
+    if (this.appContext.plugin.debugView === this) {
+      this.appContext.plugin.debugView = null
+    }
+  }
+
+  async updateForFile(showTimestamp = false) {
+    if (this.container) {
+      let timestamp = null
+      if (showTimestamp) {
+        this.lastUpdateTime = new Date().toLocaleTimeString()
+        timestamp = this.lastUpdateTime
+      }
+      await renderDebugPanel(this.container, this.appContext, timestamp)
+    }
   }
 }

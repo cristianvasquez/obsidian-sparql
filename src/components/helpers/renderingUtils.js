@@ -9,7 +9,7 @@ function getBasePath (app) {
   return app.vault.adapter?.basePath || app.vault.adapter?.getBasePath?.() || ''
 }
 
-function namedAsMarkdown (term) {
+function namedAsMarkdown (term, basePath) {
   const name = nameFromUri(term)
   if (name) {
     return `[[${name}]]`
@@ -22,8 +22,6 @@ function namedAsMarkdown (term) {
 
   if (isFileUri(term)) {
     const absolutePath = fileURLToPath(term)
-    // const basePath = app.vault.adapter?.basePath ||
-    //   app.vault.adapter?.getBasePath?.() || ''
 
     const name = getNameFromPath(absolutePath)
     return absolutePath.startsWith(basePath)
@@ -39,10 +37,22 @@ function termAsMarkdown (term, basePath) {
   }
 
   if (term.termType === 'BlankNode') {
-    return `_:${term.value}`
+    return `_:${term.value.substring(0, 15)}`
   }
-  return safe(term.value)
 
+  if (term.termType === 'Literal') {
+    let literal = `"${safe(term.value)}"`
+    if (term.language) {
+      literal += `@${term.language}`
+    }
+    // else if (term.datatype && term.datatype.value !==
+    //   'http://www.w3.org/2001/XMLSchema#string') {
+    //   console.log(term.datatype.value, shrink(term.datatype.value))
+    //   literal += `^^<${shrink(term.datatype.value)}>`
+    // }
+    return literal
+  }
+  term.value
 }
 
 function safe (value) {
@@ -58,4 +68,4 @@ function safe (value) {
 
 }
 
-export { termAsMarkdown, getBasePath, namedAsMarkdown }
+export { termAsMarkdown, getBasePath, namedAsMarkdown, safe }

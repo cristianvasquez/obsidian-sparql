@@ -7,16 +7,20 @@ import {
 import { getNameFromPath } from './uriUtils.js'
 
 function getTemplate () {
-  return `SELECT * WHERE {
-  PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-  PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-  PREFIX prov: <http://www.w3.org/ns/prov#>
-  PREFIX dot: <http://pkm-united.org/>
-  
+  return `
+\`\`\`
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX dot: <http://pkm-united.org/>
+
+SELECT * WHERE {  
     GRAPH ?g {
       __THIS__ ?p ?o
     }
-  } LIMIT 10`
+  } LIMIT 10
+\`\`\`
+`
 }
 
 const THIS = '__THIS__'
