@@ -35,7 +35,6 @@ SELECT ?note ?label WHERE {
 - `__DOC__`: Current note file URI  
 - `__property__`: Property placeholders (e.g., `__label__`, `__created__`)
 - `[[Note Name]]`: Wiki links to other notes
-- `{{type:Document}}`: Property-value patterns
 
 ## Commands
 

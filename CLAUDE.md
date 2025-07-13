@@ -83,7 +83,6 @@ Query templates support dynamic variables and property placeholders:
 - `__DOC__`: Current document file URI (`file:///absolute/path`)
 - `__property__`: Property placeholders (e.g., `__label__` → `<urn:property:label>`)
 - `[[WikiLinks]]`: Internal links to name URIs
-- `{{property:value}}`: Property-value patterns
 
 ### Event Handling
 Direct function calls replace EventEmitter pattern. File modification events trigger automatic sync and debug panel updates.

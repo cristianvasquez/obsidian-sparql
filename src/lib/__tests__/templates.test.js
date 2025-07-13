@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { 
   replacePropertyPlaceholders, 
   replaceInternalLinks, 
-  replacePropertyReferences,
   replaceSPARQL 
 } from '../templates.js'
 
@@ -53,15 +52,6 @@ describe('Template System', () => {
     })
   })
 
-  describe('replacePropertyReferences', () => {
-    it('should replace property:value patterns', () => {
-      const input = 'SELECT * WHERE { {{type:Document}} ?p ?o }'
-      const result = replacePropertyReferences(input)
-      expect(result).toContain('<urn:property:type>')
-      expect(result).toContain('<urn:name:Document>')
-      expect(result).not.toContain('{{type:Document}}')
-    })
-  })
 
   describe('replaceSPARQL integration', () => {
     it('should replace __THIS__ token', () => {

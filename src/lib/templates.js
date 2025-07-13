@@ -36,18 +36,6 @@ export function replaceInternalLinks (text, replacer) {
   })
 }
 
-/**
- * Replace property references like {{property:value}}
- */
-export function replacePropertyReferences (text) {
-  return text.replace(/\{\{([^:]+):([^}]+)\}\}/g, (match, property, value) => {
-    // Convert property to URI using vault-triplifier
-    const propUri = propertyToUri(property.trim())
-    // For values, we'll use nameToUri as a fallback since valueToUri doesn't exist
-    const valueUri = nameToUri(value.trim())
-    return `<${propUri}> <${valueUri}>`
-  })
-}
 
 /**
  * Replace property placeholders like __label__, __type__, __some property__, etc.
@@ -88,8 +76,6 @@ function replaceSPARQL (sparql, absolutePath) {
     return `<${nameUri}>`
   })
 
-  // Replace {{property:value}} patterns
-  sparql = replacePropertyReferences(sparql)
 
   return sparql
 }
