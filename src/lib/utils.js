@@ -1,4 +1,4 @@
-import { prefixes } from '../../namespaces.js'
+import { prefixes } from '../namespaces.js'
 
 function shrink (uriStr) {
 

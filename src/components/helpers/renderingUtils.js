@@ -2,7 +2,7 @@ import { nameFromUri, propertyFromUri, fileURLToPath } from 'vault-triplifier'
 import {
   getNameFromPath, isFileUri, isPropertyUri,
 } from '../../lib/uriUtils.js'
-import { shrink } from './utils.js'
+import { shrink } from '../../lib/utils.js'
 import { pathToFileURL } from 'vault-triplifier'
 
 function getBasePath (app) {
