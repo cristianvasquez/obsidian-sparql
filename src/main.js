@@ -13,7 +13,6 @@ import { getTemplate } from './lib/templates.js'
 import Triplestore from './lib/Triplestore.js'
 import { ns } from './namespaces.js'
 
-
 const PLUGIN_NAME = 'obsidian-sparql'
 
 export const SIDE_VIEW_ID = `obsidian-sparql-sideview`
@@ -239,12 +238,12 @@ export default class Prototype_11 extends Plugin {
       this.app.vault.on('modify', async (file) => {
         // Always sync when file is modified/saved
         await this.syncCurrentFileSilently(file)
-        
+
         // Update debug panel if open
-        if (this.debugView) {
-          this.debugView.updateAfterSave()
+        if (file && this.debugView) {
+          this.debugView.updateForFile()
         }
-      })
+      }),
     )
   }
 
@@ -329,7 +328,7 @@ export class CurrentFileView extends ItemView {
   async onOpen () {
     this.container = this.containerEl.children[1]
     await renderDebugPanel(this.container, this.appContext)
-    
+
     // Store reference in plugin for file change updates
     this.appContext.plugin.debugView = this
   }
@@ -341,14 +340,9 @@ export class CurrentFileView extends ItemView {
     }
   }
 
-  async updateForFile(showTimestamp = false) {
+  async updateForFile () {
     if (this.container) {
-      let timestamp = null
-      if (showTimestamp) {
-        this.lastUpdateTime = new Date().toLocaleTimeString()
-        timestamp = this.lastUpdateTime
-      }
-      await renderDebugPanel(this.container, this.appContext, timestamp)
+      await renderDebugPanel(this.container, this.appContext)
     }
   }
 }

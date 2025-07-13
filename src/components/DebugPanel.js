@@ -4,17 +4,16 @@ import { MarkdownRenderer } from 'obsidian'
  * Ultra-simple DebugPanel - just renders a hardcoded SPARQL query
  * Reuses all existing SparqlView infrastructure for processing
  */
-export async function renderDebugPanel(container, context, lastUpdateDate = null) {
-  // Clear container first to avoid appending
+export async function renderDebugPanel (container, context) {
   container.innerHTML = ''
-  
+
+  const lastUpdateTime = new Date().toLocaleTimeString()
   // Get current file for title
   const activeFile = context.app.workspace.getActiveFile()
   const filename = activeFile ? activeFile.basename : 'No file'
-  
-  // Format title: "filename - last update DATE" or just "filename"
-  const title = lastUpdateDate ? `${filename} - last update ${lastUpdateDate}` : filename
-  
+
+  const title = `${filename} - last update ${lastUpdateTime}`
+
   const debugQuery = `> ${title}
 
 \`\`\`osg

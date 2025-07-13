@@ -18,6 +18,7 @@ SELECT * WHERE {
     GRAPH ?g {
       __THIS__ ?p ?o
     }
+    FILTER (?p!=dot:raw)
   } LIMIT 10
 \`\`\`
 `
@@ -49,6 +50,17 @@ export function replacePropertyReferences (text) {
 }
 
 /**
+ * Replace property placeholders like __label__, __type__, __some property__, etc.
+ */
+export function replacePropertyPlaceholders (text) {
+  return text.replace(/__([a-zA-Z][a-zA-Z0-9_\s]*)__/g, (match, property) => {
+    // Convert property name to URI using vault-triplifier
+    const propUri = propertyToUri(property.trim())
+    return `<${propUri}>`
+  })
+}
+
+/**
  * Replace all template variables in SPARQL query
  */
 function replaceSPARQL (sparql, absolutePath) {
@@ -66,6 +78,9 @@ function replaceSPARQL (sparql, absolutePath) {
       sparql = sparql.replaceAll(DOC, `<${fileUri.value}>`)
     }
   }
+
+  // Replace property placeholders like __label__, __type__, etc.
+  sparql = replacePropertyPlaceholders(sparql)
 
   // Replace [[WikiLinks]] with name URIs
   sparql = replaceInternalLinks(sparql, (linkText) => {
