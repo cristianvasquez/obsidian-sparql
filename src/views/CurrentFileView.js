@@ -20,7 +20,8 @@ export class CurrentFileView extends ItemView {
   }
 
   async onOpen () {
-    this.container = this.containerEl.children[1]
+    // Use the proper content container for ItemView
+    this.container = this.contentEl
     await renderDebugPanel(this.container, this.appContext)
 
     // Store reference in plugin for file change updates

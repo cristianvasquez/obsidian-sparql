@@ -2067,10 +2067,10 @@ validate-iri@^1.0.0:
   resolved "https://registry.npmjs.org/validate-iri/-/validate-iri-1.0.1.tgz"
   integrity sha512-gLXi7351CoyVVQw8XE5sgpYawRKatxE7kj/xmCxXOZS1kMdtcqC0ILIqLuVEVnAUQSL/evOGG3eQ+8VgbdnstA==
 
-vault-triplifier@^2.1.1:
-  version "2.1.6"
-  resolved "https://registry.npmjs.org/vault-triplifier/-/vault-triplifier-2.1.6.tgz"
-  integrity sha512-d2297XF3J4n2LySLH4f6QxzzqrELzNCqfku0Q/jTv0Kz8Pw2KA8ksi+rKVGZzrHD7mtpk0BYAyqowj0QQwL/8w==
+vault-triplifier@^2.1.7:
+  version "2.1.7"
+  resolved "https://registry.npmjs.org/vault-triplifier/-/vault-triplifier-2.1.7.tgz"
+  integrity sha512-gdT2OtwGd481yABtSc2nv6T8VAGHJqnW+1K5ZtVoyYGqqbnUfVaVZf2MXzvNX5BdDCEQSD/Hz82NAZiFlLw+ag==
   dependencies:
     docs-and-graphs "^0.3.1"
     glob "^11.0.3"

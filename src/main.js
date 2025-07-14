@@ -26,6 +26,11 @@ export default class Prototype_11 extends Plugin {
     this.commandManager.registerEvents()
     this.addSettingTab(new SparqlSettingTab(this.app, this))
 
+    // Add ribbon icon for debug panel on the right
+    this.addRibbonIcon('database', 'Open SPARQL debug panel', () => {
+      this.activateSidePanel()
+    }).addClass('mod-right-split')
+
     const appContext = {
       app: this.app,
       triplestore: this.triplestore,

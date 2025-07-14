@@ -9,20 +9,11 @@ const ns = {
   skos: rdf.namespace('http://www.w3.org/2004/02/skos/core#'),
   schema: rdf.namespace('http://schema.org/'),
   foaf: rdf.namespace('http://xmlns.com/foaf/0.1/'),
-  dc: rdf.namespace('http://purl.org/dc/elements/1.1/'),
-  dct: rdf.namespace('http://purl.org/dc/terms/'),
-  dcam: rdf.namespace('http://purl.org/dc/dcam/'),
-  bibo: rdf.namespace('http://purl.org/ontology/bibo/'),
-  vcard: rdf.namespace('http://www.w3.org/2006/vcard/ns#'),
-  void: rdf.namespace('http://rdfs.org/ns/void#'),
   prov: rdf.namespace('http://www.w3.org/ns/prov#'),
   oa: rdf.namespace('http://www.w3.org/ns/oa#'),
-  as: rdf.namespace('https://www.w3.org/ns/activitystreams#'),
-  ldp: rdf.namespace('http://www.w3.org/ns/ldp#'),
-  solid: rdf.namespace('http://www.w3.org/ns/solid/terms#'),
   acl: rdf.namespace('http://www.w3.org/ns/auth/acl#'),
-  dot: rdf.namespace('http://pkm-united.org/'),
-  name: rdf.namespace('urn:name:'),
+  dot: rdf.namespace('http://pending.org/dot/'),
+  osg: rdf.namespace('http://pending.org/osg/'),
 }
 
 // Build prefixes from namespace objects for shrinking URIs

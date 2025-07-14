@@ -17,33 +17,42 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
   }
 
   const basePath = getBasePath(app)
-  
-  // Sort results by subject first, then by predicate for better grouping
+
+  // Sort with NamedNodes before BlankNodes, then by predicate
   const sortedResults = [...results].sort((a, b) => {
-    const subjectA = a.subject.value
-    const subjectB = b.subject.value
-    if (subjectA !== subjectB) {
-      return subjectA.localeCompare(subjectB)
+    const subjectA = a.subject
+    const subjectB = b.subject
+
+    const isBlankA = subjectA.termType === 'BlankNode'
+    const isBlankB = subjectB.termType === 'BlankNode'
+
+    if (isBlankA !== isBlankB) {
+      return isBlankA ? 1 : -1 // NamedNodes come first
     }
-    // Same subject, sort by predicate
+
+    const valA = subjectA.value
+    const valB = subjectB.value
+
+    if (valA !== valB) {
+      return valA.localeCompare(valB)
+    }
+
     return a.predicate.value.localeCompare(b.predicate.value)
   })
 
-  // Build table with subject omission for consecutive same subjects
   const escape = (s) => s?.replace(/\|/g, '\\|') ?? ''
   const header = '| Subject | Predicate | Object |'
   const divider = '| --- | --- | --- |'
-  
+
   let previousSubject = null
   const rows = sortedResults.map(result => {
     const subject = termAsMarkdown(result.subject, basePath)
     const predicate = termAsMarkdown(result.predicate, basePath)
     const object = termAsMarkdown(result.object, basePath)
-    
-    // Omit subject if it's the same as previous row (for decluttering)
+
     const displaySubject = subject === previousSubject ? '' : escape(subject)
     previousSubject = subject
-    
+
     return `| ${displaySubject} | ${escape(predicate)} | ${escape(object)} |`
   })
 

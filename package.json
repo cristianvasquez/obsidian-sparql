@@ -21,7 +21,7 @@
     "rdf-ext": "^2.5.2",
     "sparql-http-client": "^3.0.1",
     "sparqljs": "^3.7.3",
-    "vault-triplifier": "^2.1.1"
+    "vault-triplifier": "^2.1.7"
   },
   "devDependencies": {
     "@vitest/ui": "^2.1.0",
