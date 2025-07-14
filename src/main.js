@@ -16,7 +16,7 @@ export default class Prototype_11 extends Plugin {
     await this.loadSettings()
 
     this.triplestore = new Triplestore(
-      new Client(this.settings.clientSettings),
+      new Client(this.settings.clientSettings)
     )
 
     this.syncManager = new SyncManager(this.app, this.settings)

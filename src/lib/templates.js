@@ -12,7 +12,7 @@ function getTemplate () {
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX dot: <http://pkm-united.org/>
+PREFIX dot: <http://pending.org/dot/>
 
 SELECT * WHERE {  
     GRAPH ?g {

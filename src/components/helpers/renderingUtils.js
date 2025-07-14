@@ -9,6 +9,8 @@ function getBasePath (app) {
   return app.vault.adapter?.basePath || app.vault.adapter?.getBasePath?.() || ''
 }
 
+// TODO use Obdisian URLs when the vault is known
+// obsidian://open?vault=experiments&file=SomeNote
 function namedAsMarkdown (term, basePath) {
   const name = nameFromUri(term)
   if (name) {

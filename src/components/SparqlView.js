@@ -5,6 +5,7 @@ import { replaceSPARQL } from '../lib/templates.js'
 import { ns } from '../namespaces.js'
 import { resultsToMarkdownTurtle } from './MarkdownTurtle.js'
 import { generateMarkdownTable } from './BindingsTable.js'
+import { handleTriplestoreError } from '../lib/simpleErrorHandler.js'
 
 /**
  * Vanilla JS SparqlView function to replace Vue component
@@ -45,6 +46,9 @@ export async function renderSparqlView (
 
   } catch (error) {
     console.error('SparqlView error:', error)
+    
+    // Handle the error with our simple handler AND show the error
+    handleTriplestoreError(error, context.plugin.settings)
     await renderError(error, container, context)
   }
 }

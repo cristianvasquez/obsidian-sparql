@@ -23,26 +23,56 @@ CONSTRUCT { ?s ?p ?o } WHERE {
   },
   'backlinks': {
     name: 'Backlinks to Current Note',
-    query: `
-    PREFIX dot: <http://pending.org/dot/>
+    query: `PREFIX dot: <http://pending.org/dot/>
 
-    CONSTRUCT  {?s_incoming ?p_incoming ?s} WHERE {  
-    VALUES ?target { __DOC__ }
-    GRAPH ?g1 { ?s_incoming ?p_incoming ?s }
-    GRAPH ?target { ?s ?p ?o }
-    FILTER (?g1 != ?target)
+CONSTRUCT {
+  # ?s_incoming ?p_incoming ?s .
+   ?d_incoming ?p_incoming ?target .
+   ?d_incoming dot:obsidianUrl ?url .
+}
+WHERE {
+  VALUES ?target { __DOC__}
+
+  GRAPH ?d_incoming {
+    ?s_incoming ?p_incoming ?s .
+    ?d_incoming dot:inRepository ?repo .
+  }
+
+  GRAPH ?target { ?s ?p ?o }
+
+  FILTER (?d_incoming != ?target)
+  
+  FILTER(?p_incoming != dot:contains)
+  FILTER(?p_incoming != dot:represents)
+
+  BIND(STR(?d_incoming) AS ?docStr)
+  BIND(STR(?repo) AS ?repoStr)
+
+  # file path = remainder of doc URI after repo URI + "/"
+  BIND(SUBSTR(?docStr, STRLEN(?repoStr) + 2) AS ?filePath)
+
+  # vault = last path segment of repo URI
+  BIND(STRAFTER(?repoStr, "file:///") AS ?repoLocal)
+  BIND(REPLACE(?repoLocal, "^.*/", "") AS ?vault)
+
+  BIND(ENCODE_FOR_URI(?filePath) AS ?encodedFile)
+  BIND(IRI(CONCAT("obsidian://open?vault=", ?vault, "&file=", ?encodedFile)) AS ?url)
 }`,
   },
   'note-properties': {
     name: 'Similar tags',
     query: `PREFIX dot: <http://pending.org/dot/>
 
-CONSTRUCT { ?g dot:tag  ?tag } WHERE {  
+CONSTRUCT { 
+  ?g dot:tag  ?tag .
+  ?g dot:inRepository ?repo .
+} WHERE {  
     GRAPH __DOC__ {
        ?current dot:tag ?tag
     }
     GRAPH ?g {
-      ?s dot:tag ?tag
+      ?s dot:tag ?tag .
+      ?g dot:inRepository ?repo .
     }
 	FILTER(?g!=__DOC__)
   }
@@ -66,7 +96,7 @@ function createControls (context, onTemplateChange, onModeChange) {
   const templateGroup = document.createElement('div')
   templateGroup.style.display = 'flex'
   templateGroup.style.alignItems = 'center'
-  
+
   const label = document.createElement('label')
   label.textContent = 'Template: '
   label.style.marginRight = '8px'
@@ -179,7 +209,7 @@ export async function renderDebugPanel (container, context) {
 
   // Create controls with change handlers
   const { container: controlsContainer } = createControls(
-    context, 
+    context,
     (templateKey) => {
       renderQuery(container, templateKey, context)
     },

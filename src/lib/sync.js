@@ -1,4 +1,5 @@
 import { Notice } from 'obsidian'
+import { handleTriplestoreError } from './simpleErrorHandler.js'
 
 export class SyncManager {
   constructor(app, settings) {
@@ -48,7 +49,7 @@ export class SyncManager {
       return true
     } catch (error) {
       if (showNotifications) {
-        new Notice(`Sync failed: ${error.message}`)
+        handleTriplestoreError(error, this.settings)
       }
       console.error('Sync error:', error)
       return false
@@ -105,7 +106,7 @@ export class SyncManager {
       }
 
     } catch (error) {
-      new Notice(`Sync failed: ${error.message}`)
+      handleTriplestoreError(error, this.settings)
       console.error('Sync error:', error)
     }
   }
