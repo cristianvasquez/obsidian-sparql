@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { 
   replacePropertyPlaceholders, 
   replaceInternalLinks, 
-  replaceSPARQL 
+  replaceSPARQL,
+  replaceAllTokens,
+  removeFrontmatter
 } from '../templates.js'
 
 describe('Template System', () => {
@@ -20,6 +22,13 @@ describe('Template System', () => {
       const result = replacePropertyPlaceholders(input)
       expect(result).toContain('<urn:property:generated%20at%20time>')
       expect(result).not.toContain('__generated at time__')
+    })
+
+    it('should replace prefixed property placeholders', () => {
+      const input = 'SELECT * WHERE { ?s __rdfs:label__ ?o }'
+      const result = replacePropertyPlaceholders(input)
+      expect(result).toContain('<urn:property:rdfs:label>')
+      expect(result).not.toContain('__rdfs:label__')
     })
 
     it('should handle multiple property placeholders', () => {
@@ -53,6 +62,58 @@ describe('Template System', () => {
   })
 
 
+  describe('removeFrontmatter', () => {
+    it('should remove YAML frontmatter', () => {
+      const input = `---
+title: Test
+tags: [example]
+---
+
+Content here`
+      const result = removeFrontmatter(input)
+      expect(result).toBe('Content here')
+    })
+
+    it('should not affect content without frontmatter', () => {
+      const input = 'Regular content'
+      const result = removeFrontmatter(input)
+      expect(result).toBe(input)
+    })
+
+    it('should handle malformed frontmatter', () => {
+      const input = '---\nno closing marker\nContent here'
+      const result = removeFrontmatter(input)
+      expect(result).toBe(input)
+    })
+  })
+
+  describe('replaceAllTokens', () => {
+    it('should replace __DATE__ token', () => {
+      const input = 'Current time: __DATE__'
+      const result = replaceAllTokens(input, '/path/to/file.md', null)
+      expect(result).not.toContain('__DATE__')
+      expect(result).toContain('Current time:')
+    })
+
+    it('should replace multiple token types', () => {
+      const input = '__THIS__ __label__ [[LinkedNote]] __DATE__'
+      const result = replaceAllTokens(input, '/path/to/TestFile.md', null)
+      
+      expect(result).toContain('<urn:name:TestFile>')
+      expect(result).toContain('<urn:property:label>')
+      expect(result).toContain('<urn:name:LinkedNote>')
+      expect(result).not.toContain('__DATE__')
+    })
+
+    it('should handle prefixed properties', () => {
+      const input = '__rdfs:label__ __owl:sameAs__'
+      const result = replaceAllTokens(input, '/path/to/file.md', null)
+      
+      expect(result).toContain('<urn:property:rdfs:label>')
+      expect(result).toContain('<urn:property:owl:sameAs>')
+    })
+  })
+
   describe('replaceSPARQL integration', () => {
     it('should replace __THIS__ token', () => {
       const sparql = 'SELECT * WHERE { __THIS__ ?p ?o }'
@@ -81,6 +142,22 @@ describe('Template System', () => {
       expect(result).toContain('<urn:name:TestFile>')
       expect(result).toContain('<urn:property:label>')
       expect(result).toContain('<urn:name:LinkedNote>')
+    })
+
+    it('should handle __DATE__ token in SPARQL', () => {
+      const sparql = 'SELECT * WHERE { ?s __created_at__ "__DATE__" }'
+      const result = replaceSPARQL(sparql, '/path/to/file.md')
+      
+      expect(result).toContain('<urn:property:created_at>')
+      expect(result).not.toContain('__DATE__')
+    })
+
+    it('should handle prefixed properties in SPARQL', () => {
+      const sparql = 'SELECT * WHERE { ?s __rdfs:label__ __owl:sameAs__ }'
+      const result = replaceSPARQL(sparql, '/path/to/file.md')
+      
+      expect(result).toContain('<urn:property:rdfs:label>')
+      expect(result).toContain('<urn:property:owl:sameAs>')
     })
 
     it('should work without file path', () => {

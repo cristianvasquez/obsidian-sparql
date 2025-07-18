@@ -15,7 +15,7 @@ export function generateMarkdownTable(header, rows, app) {
   const headerRow = `| ${header.map(escape).join(' | ')} |`
   const dividerRow = `| ${header.map(() => '---').join(' | ')} |`
   const dataRows = rows.map(row =>
-    `| ${row.map(term => termAsMarkdown(term, basePath)).join(' | ')} |`,
+    `| ${row.map(term => term ? termAsMarkdown(term, basePath) : '').join(' | ')} |`,
   )
   
   return [headerRow, dividerRow, ...dataRows].join('\n')

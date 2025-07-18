@@ -47,9 +47,13 @@ export async function renderSparqlView (
   } catch (error) {
     console.error('SparqlView error:', error)
     
-    // Handle the error with our simple handler AND show the error
-    handleTriplestoreError(error, context.plugin.settings)
-    await renderError(error, container, context)
+    // Try to handle with our error handler first
+    const handled = handleTriplestoreError(error, context.plugin.settings)
+    
+    // If not handled, render the error in the content area
+    if (!handled) {
+      await renderError(error, container, context)
+    }
   }
 }
 

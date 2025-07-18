@@ -12,11 +12,10 @@ export function handleTriplestoreError(error, settings) {
     showActionNotice('❌ Triplestore is down - cannot reach SPARQL endpoint', 'Start Triplestore', () => {
       runOSGCommand('triplestore start', settings)
     })
-    return
+    return true // Handled
   }
 
-  // Default error - no action for other errors
-  new Notice(`❌ ${message}`)
+  return false // Not handled
 }
 
 function showActionNotice(errorMsg, actionText, actionFn) {

@@ -34,6 +34,7 @@ function namedAsMarkdown (term, basePath) {
 }
 
 function termAsMarkdown (term, basePath) {
+
   if (term.termType === 'NamedNode') {
     return namedAsMarkdown(term, basePath)
   }

@@ -13,6 +13,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX dot: <http://pending.org/dot/>
+PREFIX oa: <http://www.w3.org/ns/oa#>
 
 SELECT * WHERE {  
     GRAPH ?g {
@@ -39,10 +40,10 @@ export function replaceInternalLinks (text, replacer) {
 
 
 /**
- * Replace property placeholders like __label__, __type__, __some property__, etc.
+ * Replace property placeholders like __label__, __type__, __some property__, __prefixed:value__ etc.
  */
 export function replacePropertyPlaceholders (text) {
-  return text.replace(/__([a-zA-Z][a-zA-Z0-9_\s]*)__/g, (match, property) => {
+  return text.replace(/__([a-zA-Z][a-zA-Z0-9_\s:]*?)__/g, (match, property) => {
     // Convert property name to URI using vault-triplifier
     const propUri = propertyToUri(property.trim())
     return `<${propUri}>`
@@ -101,22 +102,22 @@ function replaceSPARQL (sparql, absolutePath) {
  */
 function processMarkdownTemplate(markdownContent, activeFile) {
   let processed = markdownContent
-  
+
   // Remove frontmatter if present
   processed = removeFrontmatter(processed)
-  
+
   // Replace __FILENAME__ with file basename
   if (activeFile && processed.includes('__FILENAME__')) {
     const filename = activeFile.basename
     processed = processed.replaceAll('__FILENAME__', filename)
   }
-  
+
   // Replace __DATE__ with current timestamp (like in debug panel)
   if (processed.includes('__DATE__')) {
     const currentTime = new Date().toLocaleTimeString()
     processed = processed.replaceAll('__DATE__', currentTime)
   }
-  
+
   return processed
 }
 
@@ -128,7 +129,7 @@ function removeFrontmatter(content) {
   if (content.trimStart().startsWith('---')) {
     const lines = content.split('\n')
     let frontmatterEnd = -1
-    
+
     // Find the closing --- after the first line
     for (let i = 1; i < lines.length; i++) {
       if (lines[i].trim() === '---') {
@@ -136,13 +137,13 @@ function removeFrontmatter(content) {
         break
       }
     }
-    
+
     // If we found closing ---, remove frontmatter
     if (frontmatterEnd > 0) {
       return lines.slice(frontmatterEnd + 1).join('\n').trimStart()
     }
   }
-  
+
   return content
 }
 
