@@ -1,4 +1,5 @@
 import { getTemplate } from './templates.js'
+import { refreshPanelQueries } from '../components/DebugPanel.js'
 
 export class CommandManager {
   constructor(plugin, syncManager) {
@@ -44,6 +45,16 @@ export class CommandManager {
       id: 'sync-with-triplestore',
       name: 'Sync with triplestore',
       callback: () => this.syncManager.syncWithTriplestore(),
+    })
+
+    this.plugin.addCommand({
+      id: 'refresh-panel-queries',
+      name: 'Refresh debug panel queries',
+      callback: async () => {
+        if (this.plugin.debugView) {
+          await refreshPanelQueries(this.plugin.appContext)
+        }
+      },
     })
   }
 

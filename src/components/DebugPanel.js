@@ -1,87 +1,79 @@
 import { MarkdownRenderer } from 'obsidian'
+import { QUERY_TEMPLATES } from '../queries.js'
+import { replaceAllTokens, removeFrontmatter } from '../lib/templates.js'
 
 // Store selected template and mode globally to persist across file changes
 let selectedTemplateKey = 'current-file'
 let isRichMode = true // true = 'osg', false = 'osg-debug'
+let availableQueries = {} // Cache for dynamically loaded queries
+let queriesLoaded = false // Track if queries have been loaded
+let currentDropdownSelect = null // Reference to current dropdown for refresh
 
-const QUERY_TEMPLATES = {
-  'current-file': {
-    name: 'Current File Triples',
-    query: `PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+/**
+ * Load available query templates from the triplestore
+ */
+async function loadAvailableQueries(context) {
+  const discoveryQuery = `PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX dot: <http://pending.org/dot/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
 
-CONSTRUCT { ?s ?p ?o } WHERE {
-    GRAPH __DOC__ {
-      ?s ?p ?o
-    }
-    FILTER (?p!=dot:raw)
-    FILTER (?p!=dot:content)
-
-  }`,
-  },
-  'backlinks': {
-    name: 'Backlinks to Current Note',
-    query: `PREFIX dot: <http://pending.org/dot/>
-
-CONSTRUCT {
-  # ?s_incoming ?p_incoming ?s .
-   ?d_incoming ?p_incoming ?target .
-   ?d_incoming dot:obsidianUrl ?url .
-}
-WHERE {
-  VALUES ?target { __DOC__}
-
-  GRAPH ?d_incoming {
-    ?s_incoming ?p_incoming ?s .
-    ?d_incoming dot:inRepository ?repo .
-  }
-
-  GRAPH ?target { ?s ?p ?o }
-
-  FILTER (?d_incoming != ?target)
-  
-  FILTER(?p_incoming != dot:contains)
-  FILTER(?p_incoming != dot:represents)
-
-  BIND(STR(?d_incoming) AS ?docStr)
-  BIND(STR(?repo) AS ?repoStr)
-
-  # file path = remainder of doc URI after repo URI + "/"
-  BIND(SUBSTR(?docStr, STRLEN(?repoStr) + 2) AS ?filePath)
-
-  # vault = last path segment of repo URI
-  BIND(STRAFTER(?repoStr, "file:///") AS ?repoLocal)
-  BIND(REPLACE(?repoLocal, "^.*/", "") AS ?vault)
-
-  BIND(ENCODE_FOR_URI(?filePath) AS ?encodedFile)
-  BIND(IRI(CONCAT("obsidian://open?vault=", ?vault, "&file=", ?encodedFile)) AS ?url)
-}`,
-  },
-  'note-properties': {
-    name: 'Similar tags',
-    query: `PREFIX dot: <http://pending.org/dot/>
-
-CONSTRUCT { 
-  ?g dot:tag  ?tag .
-  ?g dot:inRepository ?repo .
-} WHERE {  
-    GRAPH __DOC__ {
-       ?current dot:tag ?tag
-    }
+SELECT ?document ?title ?content WHERE {  
     GRAPH ?g {
-      ?s dot:tag ?tag .
-      ?g dot:inRepository ?repo .
+        ?document a dot:MarkdownDocument .
+        ?document dot:tag "panel/query" .
+        ?document dot:raw ?content .
+        OPTIONAL { ?document dcterms:title ?title }
     }
-	FILTER(?g!=__DOC__)
+}`
+
+  try {
+    const results = await context.triplestore.select(discoveryQuery)
+    const queries = {}
+    
+    // Add discovered queries
+    results.forEach(result => {
+      const title = result.title?.value || 'Untitled Query'
+      const content = result.content?.value || ''
+      const key = title.toLowerCase().replace(/\s+/g, '-')
+      queries[key] = content
+    })
+    
+    // Only use hardcoded queries as fallback if no queries were discovered
+    if (Object.keys(queries).length === 0) {
+      console.log('No queries discovered, using hardcoded fallback')
+      Object.assign(queries, QUERY_TEMPLATES)
+    }
+    
+    availableQueries = queries
+    return queries
+  } catch (error) {
+    console.error('Failed to load available queries:', error)
+    // Fallback to hardcoded templates
+    availableQueries = {...QUERY_TEMPLATES}
+    return availableQueries
   }
-`,
-  },
 }
 
 /**
-st * Create template selector dropdown with mode radio button
+ * Populate dropdown with available queries
+ */
+function populateDropdown(select, queries) {
+  // Clear existing options
+  select.innerHTML = ''
+  
+  // Add options for each query
+  Object.keys(queries).forEach(key => {
+    const option = document.createElement('option')
+    option.value = key
+    option.textContent = key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    select.appendChild(option)
+  })
+}
+
+/**
+ * Create template selector dropdown with mode radio button
  */
 function createControls (context, onTemplateChange, onModeChange) {
   const container = document.createElement('div')
@@ -109,16 +101,7 @@ function createControls (context, onTemplateChange, onModeChange) {
   select.style.border = '1px solid var(--background-modifier-border)'
   select.style.borderRadius = '3px'
 
-  // Add options
-  Object.entries(QUERY_TEMPLATES).forEach(([key, template]) => {
-    const option = document.createElement('option')
-    option.value = key
-    option.textContent = template.name
-    select.appendChild(option)
-  })
-
-  // Set current selected value
-  select.value = selectedTemplateKey
+  // Dropdown will be populated later after queries are loaded
 
   // Add change handler
   select.addEventListener('change', () => {
@@ -167,18 +150,36 @@ function createControls (context, onTemplateChange, onModeChange) {
  * Render query with selected template
  */
 async function renderQuery (container, templateKey, context) {
-  const lastUpdateTime = new Date().toLocaleTimeString()
   const activeFile = context.app.workspace.getActiveFile()
-  const filename = activeFile ? activeFile.basename : 'No file'
-  const title = `${filename} - ${QUERY_TEMPLATES[templateKey].name} - ${lastUpdateTime}`
+  const absolutePath = activeFile ? context.app.vault.adapter.getFullPath(activeFile.path) : ''
+  
+  // Get the raw markdown template
+  const markdownTemplate = availableQueries[templateKey]
+  if (!markdownTemplate) {
+    console.error(`Template '${templateKey}' not found`)
+    return
+  }
+  
+  // Remove frontmatter
+  const cleanedMarkdown = removeFrontmatter(markdownTemplate)
+  
+  // Apply unified token replacement to the entire markdown content
+  const processedMarkdown = replaceAllTokens(cleanedMarkdown, absolutePath, activeFile)
+  
+  // Update the code block type based on rich mode
+  const finalMarkdown = processedMarkdown.replace(
+    /```osg\n/g,
+    `\`\`\`${isRichMode ? 'osg' : 'osg-debug'}\n`
+  )
+  
+  await renderMarkdown(container, finalMarkdown, context)
+}
 
-  const codeBlockType = isRichMode ? 'osg' : 'osg-debug'
-  const debugQuery = `> ${title}
-
-\`\`\`${codeBlockType}
-${QUERY_TEMPLATES[templateKey].query}
-\`\`\``
-
+/**
+ * Helper to render markdown
+ */
+async function renderMarkdown(container, markdown, context) {
+  const activeFile = context.app.workspace.getActiveFile()
   const sourcePath = activeFile ? activeFile.path : ''
 
   // Clear only the query content, not the selector
@@ -193,7 +194,7 @@ ${QUERY_TEMPLATES[templateKey].query}
 
   await MarkdownRenderer.render(
     context.app,
-    debugQuery,
+    markdown,
     queryContainer,
     sourcePath,
     context.plugin,
@@ -201,24 +202,83 @@ ${QUERY_TEMPLATES[templateKey].query}
 }
 
 /**
- * Ultra-simple DebugPanel with query template dropdown and mode selector
- * Reuses all existing SparqlView infrastructure for processing
+ * Refresh available queries from triplestore
  */
-export async function renderDebugPanel (container, context) {
+export async function refreshPanelQueries(context) {
+  // Force reload queries from triplestore
+  queriesLoaded = false
+  await loadAvailableQueries(context)
+  
+  // Update dropdown if it exists
+  if (currentDropdownSelect) {
+    populateDropdown(currentDropdownSelect, availableQueries)
+    
+    // Ensure selectedTemplateKey exists in available queries
+    if (!availableQueries[selectedTemplateKey]) {
+      // First try to use 'current-file' as default
+      if (availableQueries['current-file']) {
+        selectedTemplateKey = 'current-file'
+      } else {
+        // Otherwise use the first available query
+        const firstKey = Object.keys(availableQueries)[0]
+        if (firstKey) {
+          selectedTemplateKey = firstKey
+        }
+      }
+    }
+    
+    // Set the dropdown value after populating
+    currentDropdownSelect.value = selectedTemplateKey
+  }
+}
+
+/**
+ * Initialize the debug panel (only called once when panel is first opened)
+ */
+async function initializeDebugPanel(container, context) {
   container.innerHTML = ''
 
+  // Load available queries from triplestore only once
+  if (!queriesLoaded) {
+    await loadAvailableQueries(context)
+    queriesLoaded = true
+  }
+
   // Create controls with change handlers
-  const { container: controlsContainer } = createControls(
+  const { container: controlsContainer, select } = createControls(
     context,
     (templateKey) => {
       renderQuery(container, templateKey, context)
     },
     (richMode) => {
       renderQuery(container, selectedTemplateKey, context)
-    }
+    },
   )
 
   container.appendChild(controlsContainer)
+
+  // Store reference to dropdown for refresh functionality
+  currentDropdownSelect = select
+
+  // Update dropdown with loaded queries
+  populateDropdown(select, availableQueries)
+  
+  // Ensure selectedTemplateKey exists in available queries
+  if (!availableQueries[selectedTemplateKey]) {
+    // First try to use 'current-file' as default
+    if (availableQueries['current-file']) {
+      selectedTemplateKey = 'current-file'
+    } else {
+      // Otherwise use the first available query
+      const firstKey = Object.keys(availableQueries)[0]
+      if (firstKey) {
+        selectedTemplateKey = firstKey
+      }
+    }
+  }
+  
+  // Set the dropdown value after populating
+  select.value = selectedTemplateKey
 
   // Initial render with persisted selected template and mode
   await renderQuery(container, selectedTemplateKey, context)
@@ -237,4 +297,25 @@ export async function renderDebugPanel (container, context) {
       }
     }
   })
+}
+
+/**
+ * Update only the query content for file changes (lightweight)
+ */
+async function updateQueryContent(container, context) {
+  // Only update the query content, not the entire panel
+  await renderQuery(container, selectedTemplateKey, context)
+}
+
+/**
+ * Main entry point - decides whether to initialize or just update content
+ */
+export async function renderDebugPanel (container, context, forceInit = false) {
+  // If container is empty or force init, do full initialization
+  if (container.innerHTML === '' || forceInit) {
+    await initializeDebugPanel(container, context)
+  } else {
+    // Otherwise just update the query content
+    await updateQueryContent(container, context)
+  }
 }

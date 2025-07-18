@@ -26,6 +26,7 @@ SELECT * WHERE {
 
 const THIS = '__THIS__'
 const DOC = '__DOC__'
+const DATE = '__DATE__'
 
 /**
  * Replace [[link]] patterns with URIs
@@ -49,35 +50,100 @@ export function replacePropertyPlaceholders (text) {
 }
 
 /**
- * Replace all template variables in SPARQL query
+ * Replace all template variables in text (both markdown and SPARQL)
  */
-function replaceSPARQL (sparql, absolutePath) {
+function replaceAllTokens(text, absolutePath, activeFile) {
+  let processed = text
+
   if (absolutePath) {
     // Replace __THIS__ with name URI
-    if (sparql.includes(THIS)) {
+    if (processed.includes(THIS)) {
       const name = getNameFromPath(absolutePath)
       const nameUri = nameToUri(name)
-      sparql = sparql.replaceAll(THIS, `<${nameUri}>`)
+      processed = processed.replaceAll(THIS, `<${nameUri}>`)
     }
 
     // Replace __DOC__ with file URI
-    if (sparql.includes(DOC)) {
+    if (processed.includes(DOC)) {
       const fileUri = pathToFileURL(absolutePath)
-      sparql = sparql.replaceAll(DOC, `<${fileUri.value}>`)
+      processed = processed.replaceAll(DOC, `<${fileUri.value}>`)
     }
   }
 
+  // Replace __DATE__ with current timestamp
+  if (processed.includes(DATE)) {
+    const currentTime = new Date().toLocaleTimeString()
+    processed = processed.replaceAll(DATE, currentTime)
+  }
+
   // Replace property placeholders like __label__, __type__, etc.
-  sparql = replacePropertyPlaceholders(sparql)
+  processed = replacePropertyPlaceholders(processed)
 
   // Replace [[WikiLinks]] with name URIs
-  sparql = replaceInternalLinks(sparql, (linkText) => {
+  processed = replaceInternalLinks(processed, (linkText) => {
     const nameUri = nameToUri(linkText.trim())
     return `<${nameUri}>`
   })
 
-
-  return sparql
+  return processed
 }
 
-export { getTemplate, replaceSPARQL }
+/**
+ * Replace all template variables in SPARQL query (legacy function)
+ */
+function replaceSPARQL (sparql, absolutePath) {
+  return replaceAllTokens(sparql, absolutePath, null)
+}
+
+/**
+ * Process markdown template by replacing __FILENAME__ and __DATE__ placeholders
+ * and removing frontmatter.
+ */
+function processMarkdownTemplate(markdownContent, activeFile) {
+  let processed = markdownContent
+  
+  // Remove frontmatter if present
+  processed = removeFrontmatter(processed)
+  
+  // Replace __FILENAME__ with file basename
+  if (activeFile && processed.includes('__FILENAME__')) {
+    const filename = activeFile.basename
+    processed = processed.replaceAll('__FILENAME__', filename)
+  }
+  
+  // Replace __DATE__ with current timestamp (like in debug panel)
+  if (processed.includes('__DATE__')) {
+    const currentTime = new Date().toLocaleTimeString()
+    processed = processed.replaceAll('__DATE__', currentTime)
+  }
+  
+  return processed
+}
+
+/**
+ * Remove YAML frontmatter from markdown content
+ */
+function removeFrontmatter(content) {
+  // Check if content starts with frontmatter
+  if (content.trimStart().startsWith('---')) {
+    const lines = content.split('\n')
+    let frontmatterEnd = -1
+    
+    // Find the closing --- after the first line
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === '---') {
+        frontmatterEnd = i
+        break
+      }
+    }
+    
+    // If we found closing ---, remove frontmatter
+    if (frontmatterEnd > 0) {
+      return lines.slice(frontmatterEnd + 1).join('\n').trimStart()
+    }
+  }
+  
+  return content
+}
+
+export { getTemplate, replaceSPARQL, processMarkdownTemplate, replaceAllTokens, removeFrontmatter }

@@ -31,7 +31,7 @@ export default class Prototype_11 extends Plugin {
       this.activateSidePanel()
     }).addClass('mod-right-split')
 
-    const appContext = {
+    this.appContext = {
       app: this.app,
       triplestore: this.triplestore,
       ns,
@@ -40,15 +40,15 @@ export default class Prototype_11 extends Plugin {
 
     this.registerView(
       SIDE_VIEW_ID,
-      (leaf) => new CurrentFileView(leaf, appContext),
+      (leaf) => new CurrentFileView(leaf, this.appContext),
     )
 
     this.registerMarkdownCodeBlockProcessor('osg', (source, el) => {
-      renderSparqlView(source, el, appContext, false)
+      renderSparqlView(source, el, this.appContext, false)
     })
 
     this.registerMarkdownCodeBlockProcessor('osg-debug', (source, el) => {
-      renderSparqlView(source, el, appContext, true)
+      renderSparqlView(source, el, this.appContext, true)
     })
   }
 
