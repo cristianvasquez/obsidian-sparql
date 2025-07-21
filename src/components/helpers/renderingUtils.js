@@ -26,8 +26,8 @@ function namedAsMarkdown (term, basePath) {
     const absolutePath = fileURLToPath(term)
 
     const name = getNameFromPath(absolutePath)
-    return absolutePath.startsWith(basePath)
-      ? `[[${name}]]`
+    return (absolutePath.startsWith(basePath) && absolutePath.endsWith('.md'))
+      ? `[[${name}.md]]`
       : `[${name}](${pathToFileURL(absolutePath)})`
   }
   return `[${shrink(term.value)}](${term.value})`

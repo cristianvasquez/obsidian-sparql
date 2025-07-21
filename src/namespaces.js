@@ -14,6 +14,7 @@ const ns = {
   acl: rdf.namespace('http://www.w3.org/ns/auth/acl#'),
   dot: rdf.namespace('http://pending.org/dot/'),
   osg: rdf.namespace('http://pending.org/osg/'),
+  dct: rdf.namespace('http://purl.org/dc/terms/'),
 }
 
 // Build prefixes from namespace objects for shrinking URIs

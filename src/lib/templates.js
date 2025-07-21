@@ -25,9 +25,10 @@ SELECT * WHERE {
 `
 }
 
-const THIS = '__THIS__'
-const DOC = '__DOC__'
-const DATE = '__DATE__'
+const THIS = '__THIS__' // The URI of the main concept corresponding to the active file
+const DOC = '__DOC__' // The URI corresponding to the active file
+const DATE = '__DATE__' // The current date
+const REPO = '__REPO__' // The URI corresponding to the active repository
 
 /**
  * Replace [[link]] patterns with URIs
@@ -37,7 +38,6 @@ export function replaceInternalLinks (text, replacer) {
     return replacer(linkText)
   })
 }
-
 
 /**
  * Replace property placeholders like __label__, __type__, __some property__, __prefixed:value__ etc.
@@ -53,7 +53,7 @@ export function replacePropertyPlaceholders (text) {
 /**
  * Replace all template variables in text (both markdown and SPARQL)
  */
-function replaceAllTokens(text, absolutePath, activeFile) {
+function replaceAllTokens (text, absolutePath, activeFile) {
   let processed = text
 
   if (absolutePath) {
@@ -100,7 +100,7 @@ function replaceSPARQL (sparql, absolutePath) {
  * Process markdown template by replacing __FILENAME__ and __DATE__ placeholders
  * and removing frontmatter.
  */
-function processMarkdownTemplate(markdownContent, activeFile) {
+function processMarkdownTemplate (markdownContent, activeFile) {
   let processed = markdownContent
 
   // Remove frontmatter if present
@@ -124,7 +124,7 @@ function processMarkdownTemplate(markdownContent, activeFile) {
 /**
  * Remove YAML frontmatter from markdown content
  */
-function removeFrontmatter(content) {
+function removeFrontmatter (content) {
   // Check if content starts with frontmatter
   if (content.trimStart().startsWith('---')) {
     const lines = content.split('\n')
@@ -147,4 +147,10 @@ function removeFrontmatter(content) {
   return content
 }
 
-export { getTemplate, replaceSPARQL, processMarkdownTemplate, replaceAllTokens, removeFrontmatter }
+export {
+  getTemplate,
+  replaceSPARQL,
+  processMarkdownTemplate,
+  replaceAllTokens,
+  removeFrontmatter,
+}

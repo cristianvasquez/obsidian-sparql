@@ -283,17 +283,50 @@ async function initializeDebugPanel(container, context) {
   // Initial render with persisted selected template and mode
   await renderQuery(container, selectedTemplateKey, context)
 
-  // Manual event delegation for wiki links in side panel
+  // Manual event delegation for both wiki links and file:// links in side panel
   container.addEventListener('click', (event) => {
-    const linkEl = event.target.closest('a.internal-link')
+    const linkEl = event.target.closest('a')
     if (linkEl) {
-      event.preventDefault()
       const href = linkEl.getAttribute('data-href') ||
         linkEl.getAttribute('href')
+      
       if (href) {
-        const activeFile = context.app.workspace.getActiveFile()
-        const sourcePath = activeFile ? activeFile.path : ''
-        context.app.workspace.openLinkText(href, sourcePath)
+        // Handle internal wiki links
+        if (linkEl.classList.contains('internal-link')) {
+          event.preventDefault()
+          const activeFile = context.app.workspace.getActiveFile()
+          const sourcePath = activeFile ? activeFile.path : ''
+          context.app.workspace.openLinkText(href, sourcePath)
+        }
+        // Handle file:// links
+        else if (href.startsWith('file://')) {
+          event.preventDefault()
+          try {
+            // Convert file:// URL to path and open in Obsidian
+            const filePath = decodeURIComponent(href.replace('file://', ''))
+            const relativePath = context.app.vault.adapter.path.relative(
+              context.app.vault.adapter.basePath,
+              filePath
+            )
+            
+            // Try to open the file if it exists in the vault
+            const file = context.app.vault.getAbstractFileByPath(relativePath)
+            if (file) {
+              context.app.workspace.openLinkText(relativePath, '')
+            } else {
+              // Fallback: try to open with system default
+              require('electron').shell.openPath(filePath)
+            }
+          } catch (error) {
+            console.error('Failed to open file:', error)
+            // Last resort: try electron shell
+            try {
+              require('electron').shell.openExternal(href)
+            } catch (e) {
+              console.error('Failed to open with shell:', e)
+            }
+          }
+        }
       }
     }
   })
