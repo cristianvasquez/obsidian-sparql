@@ -2,6 +2,7 @@ import {
   getBasePath,
   termAsMarkdown,
 } from './helpers/renderingUtils.js'
+import { sortTriplesBySubject } from './helpers/subjectSorter.js'
 
 /**
  * Convert SPARQL CONSTRUCT results to grouped layout with subjects as headers
@@ -18,27 +19,8 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
 
   const basePath = getBasePath(app)
 
-  // Sort with NamedNodes before BlankNodes, then by predicate
-  const sortedResults = [...results].sort((a, b) => {
-    const subjectA = a.subject
-    const subjectB = b.subject
-
-    const isBlankA = subjectA.termType === 'BlankNode'
-    const isBlankB = subjectB.termType === 'BlankNode'
-
-    if (isBlankA !== isBlankB) {
-      return isBlankA ? 1 : -1 // NamedNodes come first
-    }
-
-    const valA = subjectA.value
-    const valB = subjectB.value
-
-    if (valA !== valB) {
-      return valA.localeCompare(valB)
-    }
-
-    return a.predicate.value.localeCompare(b.predicate.value)
-  })
+  // Sort by subject priority: Normal -> MarkdownDocument -> Blank nodes
+  const sortedResults = sortTriplesBySubject(results)
 
   // Group triples by subject
   const subjectGroups = new Map()

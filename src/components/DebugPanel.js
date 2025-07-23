@@ -19,14 +19,15 @@ PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX dot: <http://pending.org/dot/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 
-SELECT ?document ?title ?content WHERE {  
-    GRAPH ?g {
-        ?document a dot:MarkdownDocument .
-        ?document dot:tag "panel/query" .
-        ?document dot:raw ?content .
-        OPTIONAL { ?document dcterms:title ?title }
-    }
-}`
+SELECT ?document ?title ?content WHERE {    
+    GRAPH ?g {  
+        ?document a dot:MarkdownDocument .        
+        ?document dot:tag "panel/query" .        
+        ?document dot:raw ?content .        
+    	OPTIONAL { ?document dcterms:title ?title }    
+    	OPTIONAL { ?document <urn:property:order> ?order }
+	}
+} ORDER BY ?order`
 
   try {
     const results = await context.triplestore.select(discoveryQuery)

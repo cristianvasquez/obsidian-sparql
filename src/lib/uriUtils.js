@@ -1,5 +1,5 @@
 import {
-
+  pathToFileURL,
   propertyFromUri,
 } from 'vault-triplifier'
 

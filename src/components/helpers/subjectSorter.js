@@ -1,0 +1,75 @@
+import { ns } from '../../namespaces.js'
+
+/**
+ * Sort SPARQL CONSTRUCT results by subject with custom priority ordering:
+ * 1. Normal subjects (NamedNodes that are not dot:MarkdownDocument)
+ * 2. dot:MarkdownDocument subjects 
+ * 3. Blank nodes
+ * 
+ * Within each category, sort alphabetically by subject value, then by predicate
+ * @param {Array} results - SPARQL CONSTRUCT results (array of triples)
+ * @returns {Array} Sorted array of triples
+ */
+export function sortTriplesBySubject(results) {
+  // First pass: build priority map for all subjects
+  const priorityMap = buildSubjectPriorityMap(results)
+  
+  return [...results].sort((a, b) => {
+    const subjectA = a.subject
+    const subjectB = b.subject
+    
+    const priorityA = priorityMap.get(subjectA.value) || 1
+    const priorityB = priorityMap.get(subjectB.value) || 1
+    
+    // Sort by priority first
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB
+    }
+    
+    // Within same priority, sort by subject value
+    const valA = subjectA.value
+    const valB = subjectB.value
+    
+    if (valA !== valB) {
+      return valA.localeCompare(valB)
+    }
+    
+    // Finally sort by predicate
+    return a.predicate.value.localeCompare(b.predicate.value)
+  })
+}
+
+/**
+ * Build a map of subject value -> priority for efficient sorting
+ * @param {Array} results - All SPARQL triples
+ * @returns {Map} Map of subject value to priority number
+ */
+function buildSubjectPriorityMap(results) {
+  const priorityMap = new Map()
+  
+  for (const triple of results) {
+    const subjectValue = triple.subject.value
+    
+    // Skip if we already processed this subject
+    if (priorityMap.has(subjectValue)) {
+      continue
+    }
+    
+    // Default priority: 1 (normal subjects)
+    let priority = 1
+    
+    // Check if it's a blank node: priority 3
+    if (triple.subject.termType === 'BlankNode') {
+      priority = 3
+    }
+    // Check if it's a dot:MarkdownDocument: priority 2
+    else if (triple.predicate.value === ns.rdf.type.value && 
+             triple.object.value === ns.dot('MarkdownDocument').value) {
+      priority = 2
+    }
+    
+    priorityMap.set(subjectValue, priority)
+  }
+  
+  return priorityMap
+}

@@ -1,7 +1,7 @@
 import { MarkdownRenderer } from 'obsidian'
 import { Parser } from 'sparqljs'
 import { prettyPrint } from '../lib/prettyPrint.js'
-import { replaceSPARQL } from '../lib/templates.js'
+import { replaceAllTokens } from '../lib/templates.js'
 import { ns } from '../namespaces.js'
 import { resultsToMarkdownTurtle } from './MarkdownTurtle.js'
 import { generateMarkdownTable } from './BindingsTable.js'
@@ -20,11 +20,12 @@ export async function renderSparqlView (
       throw new Error('No active file')
     }
 
-    // Get absolute path
+    // Get absolute path and repo path
     const absolutePath = context.app.vault.adapter.getFullPath(activeFile.path)
+    const repoPath = context.app.vault.adapter.basePath
 
     // Replace template variables
-    const replacedQuery = replaceSPARQL(source, absolutePath)
+    const replacedQuery = replaceAllTokens(source, absolutePath, activeFile, repoPath)
 
     // Parse query to determine type
     const parser = new Parser({ skipValidation: true, sparqlStar: true })

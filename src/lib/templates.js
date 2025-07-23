@@ -8,12 +8,13 @@ import { getNameFromPath } from './uriUtils.js'
 
 function getTemplate () {
   return `
-\`\`\`
+\`\`\`osg
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX dot: <http://pending.org/dot/>
 PREFIX oa: <http://www.w3.org/ns/oa#>
+PREFIX schema: <http://schema.org/>
 
 SELECT * WHERE {  
     GRAPH ?g {
@@ -53,7 +54,7 @@ export function replacePropertyPlaceholders (text) {
 /**
  * Replace all template variables in text (both markdown and SPARQL)
  */
-function replaceAllTokens (text, absolutePath, activeFile) {
+function replaceAllTokens (text, absolutePath, activeFile, repoPath) {
   let processed = text
 
   if (absolutePath) {
@@ -71,6 +72,12 @@ function replaceAllTokens (text, absolutePath, activeFile) {
     }
   }
 
+  // Replace __REPO__ with repository URI
+  if (processed.includes(REPO) && repoPath) {
+    const repoUri = pathToFileURL(repoPath)
+    processed = processed.replaceAll(REPO, `<${repoUri.value}>`)
+  }
+
   // Replace __DATE__ with current timestamp
   if (processed.includes(DATE)) {
     const currentTime = new Date().toLocaleTimeString()
@@ -85,38 +92,6 @@ function replaceAllTokens (text, absolutePath, activeFile) {
     const nameUri = nameToUri(linkText.trim())
     return `<${nameUri}>`
   })
-
-  return processed
-}
-
-/**
- * Replace all template variables in SPARQL query (legacy function)
- */
-function replaceSPARQL (sparql, absolutePath) {
-  return replaceAllTokens(sparql, absolutePath, null)
-}
-
-/**
- * Process markdown template by replacing __FILENAME__ and __DATE__ placeholders
- * and removing frontmatter.
- */
-function processMarkdownTemplate (markdownContent, activeFile) {
-  let processed = markdownContent
-
-  // Remove frontmatter if present
-  processed = removeFrontmatter(processed)
-
-  // Replace __FILENAME__ with file basename
-  if (activeFile && processed.includes('__FILENAME__')) {
-    const filename = activeFile.basename
-    processed = processed.replaceAll('__FILENAME__', filename)
-  }
-
-  // Replace __DATE__ with current timestamp (like in debug panel)
-  if (processed.includes('__DATE__')) {
-    const currentTime = new Date().toLocaleTimeString()
-    processed = processed.replaceAll('__DATE__', currentTime)
-  }
 
   return processed
 }
@@ -149,8 +124,6 @@ function removeFrontmatter (content) {
 
 export {
   getTemplate,
-  replaceSPARQL,
-  processMarkdownTemplate,
   replaceAllTokens,
   removeFrontmatter,
 }

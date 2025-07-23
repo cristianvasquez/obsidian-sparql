@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { 
   replacePropertyPlaceholders, 
   replaceInternalLinks, 
-  replaceSPARQL,
   replaceAllTokens,
   removeFrontmatter
 } from '../templates.js'
@@ -114,19 +113,26 @@ Content here`
     })
   })
 
-  describe('replaceSPARQL integration', () => {
+  describe('replaceAllTokens integration', () => {
     it('should replace __THIS__ token', () => {
       const sparql = 'SELECT * WHERE { __THIS__ ?p ?o }'
-      const result = replaceSPARQL(sparql, '/path/to/MyFile.md')
+      const result = replaceAllTokens(sparql, '/path/to/MyFile.md', null, null)
       expect(result).toContain('<urn:name:MyFile>')
       expect(result).not.toContain('__THIS__')
     })
 
     it('should replace __DOC__ token', () => {
       const sparql = 'CONSTRUCT { ?s ?p ?o } WHERE { GRAPH __DOC__ { ?s ?p ?o } }'
-      const result = replaceSPARQL(sparql, '/path/to/MyFile.md')
+      const result = replaceAllTokens(sparql, '/path/to/MyFile.md', null, null)
       expect(result).toContain('<file:///path/to/MyFile.md>')
       expect(result).not.toContain('__DOC__')
+    })
+
+    it('should replace __REPO__ token', () => {
+      const sparql = 'SELECT * WHERE { GRAPH __REPO__ { ?s ?p ?o } }'
+      const result = replaceAllTokens(sparql, '/path/to/MyFile.md', null, '/home/user/repo')
+      expect(result).toContain('<file:///home/user/repo>')
+      expect(result).not.toContain('__REPO__')
     })
 
     it('should handle combined replacements', () => {
@@ -136,7 +142,7 @@ Content here`
             __THIS__ __label__ [[LinkedNote]]
           }
         }`
-      const result = replaceSPARQL(sparql, '/path/to/TestFile.md')
+      const result = replaceAllTokens(sparql, '/path/to/TestFile.md', null, null)
       
       expect(result).toContain('<file:///path/to/TestFile.md>')
       expect(result).toContain('<urn:name:TestFile>')
@@ -146,7 +152,7 @@ Content here`
 
     it('should handle __DATE__ token in SPARQL', () => {
       const sparql = 'SELECT * WHERE { ?s __created_at__ "__DATE__" }'
-      const result = replaceSPARQL(sparql, '/path/to/file.md')
+      const result = replaceAllTokens(sparql, '/path/to/file.md', null, null)
       
       expect(result).toContain('<urn:property:created_at>')
       expect(result).not.toContain('__DATE__')
@@ -154,7 +160,7 @@ Content here`
 
     it('should handle prefixed properties in SPARQL', () => {
       const sparql = 'SELECT * WHERE { ?s __rdfs:label__ __owl:sameAs__ }'
-      const result = replaceSPARQL(sparql, '/path/to/file.md')
+      const result = replaceAllTokens(sparql, '/path/to/file.md', null, null)
       
       expect(result).toContain('<urn:property:rdfs:label>')
       expect(result).toContain('<urn:property:owl:sameAs>')
@@ -162,7 +168,7 @@ Content here`
 
     it('should work without file path', () => {
       const sparql = 'SELECT * WHERE { [[MyNote]] __label__ ?o }'
-      const result = replaceSPARQL(sparql, null)
+      const result = replaceAllTokens(sparql, null, null, null)
       
       expect(result).toContain('<urn:name:MyNote>')
       expect(result).toContain('<urn:property:label>')
