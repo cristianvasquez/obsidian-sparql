@@ -3,6 +3,7 @@ import {
   termAsMarkdown,
 } from './helpers/renderingUtils.js'
 import { sortTriplesBySubject, sortTriplesByProperty } from './helpers/tripleSorter.js'
+import { ns } from '../namespaces.js'
 
 /**
  * Convert SPARQL CONSTRUCT results to grouped layout with subjects as headers
@@ -19,7 +20,7 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
 
   const basePath = getBasePath(app)
 
-  // Sort by subject priority: Normal -> MarkdownDocument -> Blank nodes
+  // Sort by subject priority: MarkdownDocument -> Normal -> Blank nodes
   const sortedResults = sortTriplesBySubject(results)
 
   // Group triples by subject
@@ -38,17 +39,20 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
   // Create sections for each subject
   for (const [subjectKey, triples] of subjectGroups) {
     const subjectMarkdown = termAsMarkdown(triples[0].subject, basePath)
-    
-    // Subject as header
-    sections.push(`## ${escape(subjectMarkdown)}`)
-    
+
+    // Check if this is a MarkdownDocument
+    const isMarkdownDocument = triples.some(triple =>
+      triple.predicate.value === ns.rdf.type.value &&
+      triple.object.value === ns.dot('MarkdownDocument').value
+    )
+
     // Property-Value table
     const propertyHeader = '| Property | Value |'
     const propertyDivider = '| --- | --- |'
-    
+
     // Sort properties with rdf:type first
     const sortedTriples = sortTriplesByProperty(triples)
-    
+
     let lastPredicate = null
     const propertyRows = sortedTriples.map(result => {
       const predicateValue = result.predicate.value
@@ -57,8 +61,16 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
       lastPredicate = predicateValue
       return `| ${escape(predicate)} | ${escape(object)} |`
     })
-    
-    sections.push([propertyHeader, propertyDivider, ...propertyRows].join('\n'))
+
+    const tableContent = [propertyHeader, propertyDivider, ...propertyRows].join('\n')
+
+    if (isMarkdownDocument) {
+      // Wrap MarkdownDocument sections in collapsible details
+      sections.push(`<details>\n<summary>Document metadata</summary>\n\n${tableContent}\n\n</details>`)
+    } else {
+      // Regular section with header
+      sections.push(`## ${escape(subjectMarkdown)}\n\n${tableContent}`)
+    }
   }
 
   const titleSection = title ? `# ${title}\n\n` : ''
