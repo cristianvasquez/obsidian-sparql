@@ -73,3 +73,28 @@ function buildSubjectPriorityMap(results) {
   
   return priorityMap
 }
+
+/**
+ * Sort triples by predicate with custom priority ordering:
+ * 1. rdf:type (always first)
+ * 2. All other properties alphabetically
+ *
+ * @param {Array} triples - Array of triples for a single subject
+ * @returns {Array} Sorted array of triples
+ */
+export function sortTriplesByProperty(triples) {
+  return [...triples].sort((a, b) => {
+    const predicateA = a.predicate.value
+    const predicateB = b.predicate.value
+
+    const aIsType = predicateA === ns.rdf.type.value
+    const bIsType = predicateB === ns.rdf.type.value
+
+    // rdf:type always comes first
+    if (aIsType && !bIsType) return -1
+    if (!aIsType && bIsType) return 1
+
+    // Both are rdf:type or both are other properties
+    return predicateA.localeCompare(predicateB)
+  })
+}

@@ -2,7 +2,7 @@ import {
   getBasePath,
   termAsMarkdown,
 } from './helpers/renderingUtils.js'
-import { sortTriplesBySubject } from './helpers/subjectSorter.js'
+import { sortTriplesBySubject, sortTriplesByProperty } from './helpers/tripleSorter.js'
 
 /**
  * Convert SPARQL CONSTRUCT results to grouped layout with subjects as headers
@@ -46,9 +46,15 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
     const propertyHeader = '| Property | Value |'
     const propertyDivider = '| --- | --- |'
     
-    const propertyRows = triples.map(result => {
-      const predicate = termAsMarkdown(result.predicate, basePath)
+    // Sort properties with rdf:type first
+    const sortedTriples = sortTriplesByProperty(triples)
+    
+    let lastPredicate = null
+    const propertyRows = sortedTriples.map(result => {
+      const predicateValue = result.predicate.value
+      const predicate = predicateValue === lastPredicate ? '' : termAsMarkdown(result.predicate, basePath)
       const object = termAsMarkdown(result.object, basePath)
+      lastPredicate = predicateValue
       return `| ${escape(predicate)} | ${escape(object)} |`
     })
     
