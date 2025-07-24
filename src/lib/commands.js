@@ -1,13 +1,13 @@
-import { getTemplate } from './templates.js'
 import { refreshPanelQueries } from '../components/DebugPanel.js'
+import { getOSGQueryTemplate, getTemplate } from './templates.js'
 
 export class CommandManager {
-  constructor(plugin, syncManager) {
+  constructor (plugin, syncManager) {
     this.plugin = plugin
     this.syncManager = syncManager
   }
 
-  registerCommands() {
+  registerCommands () {
     this.plugin.addCommand({
       id: 'open-obsidian-sparql',
       name: 'Open debug panel',
@@ -25,6 +25,14 @@ export class CommandManager {
       name: 'Insert SPARQL template',
       editorCallback: (editor) => {
         editor.replaceRange(getTemplate(), editor.getCursor())
+      },
+    })
+
+    this.plugin.addCommand({
+      id: 'insert-osg-template',
+      name: 'Insert OSG query template',
+      editorCallback: (editor) => {
+        editor.replaceRange(getOSGQueryTemplate(), editor.getCursor())
       },
     })
 
@@ -58,27 +66,47 @@ export class CommandManager {
     })
   }
 
-  registerEvents() {
-    // Simple approach: just use file modification events
+  registerEvents () {
+
     this.plugin.registerEvent(
       this.plugin.app.vault.on('modify', async (file) => {
         // Always sync when file is modified/saved
         await this.syncManager.syncFile(file)
-
         // Update debug panel if open
         if (file && this.plugin.debugView) {
-          this.plugin.debugView.updateForFile()
+          await this.plugin.debugView.updateForFile()
         }
+      }),
+    )
+
+    this.plugin.registerEvent(
+      this.plugin.app.vault.on('rename', async (file, oldPath) => {
+        await this.syncManager.deleteIndex(oldPath)
+        // Always sync when file is modified/saved
+        await this.syncManager.syncFile(file)
+        // Update debug panel if open
+        if (file && this.plugin.debugView) {
+          await this.plugin.debugView.updateForFile()
+        }
+
+      }),
+    )
+
+    this.plugin.registerEvent(
+      this.plugin.app.vault.on('delete', async (file) => {
+        await this.syncManager.deleteIndex(file.path)
+
       }),
     )
 
     // Update debug panel when switching files
     this.plugin.registerEvent(
-      this.plugin.app.workspace.on('file-open', (file) => {
+      this.plugin.app.workspace.on('file-open', async (file) => {
         if (file && this.plugin.debugView) {
-          this.plugin.debugView.updateForFile()
+          await this.plugin.debugView.updateForFile()
         }
       }),
     )
+
   }
 }

@@ -2,12 +2,20 @@ import { Notice } from 'obsidian'
 import { handleTriplestoreError } from './simpleErrorHandler.js'
 
 export class SyncManager {
-  constructor(app, settings) {
+  constructor (app, settings) {
     this.app = app
     this.settings = settings
   }
 
-  async syncCurrentFile(showNotifications = true) {
+  async executeCommand(command, options = {}) {
+    const { exec } = require('child_process')
+    const { promisify } = require('util')
+    const execAsync = promisify(exec)
+    
+    return await execAsync(command, options)
+  }
+
+  async syncCurrentFile (showNotifications = true) {
     const activeFile = this.app.workspace.getActiveFile()
     if (!activeFile) {
       if (showNotifications) {
@@ -19,7 +27,33 @@ export class SyncManager {
     await this.syncFile(activeFile, showNotifications)
   }
 
-  async syncFile(file, showNotifications = false) {
+  async deleteIndex (path, showNotifications = false) {
+    const absolutePath = this.app.vault.adapter.getFullPath(path)
+    const command = `${this.settings.osgPath} sync --remove --file "${absolutePath}"`
+    
+    if (showNotifications) {
+      new Notice(`Removing ${path} from index...`)
+    }
+
+    try {
+      const result = await this.executeCommand(command)
+      
+      if (showNotifications) {
+        new Notice(`✓ ${path} removed from index`)
+      }
+      
+      console.log('Delete index output:', result.stdout)
+      return true
+    } catch (error) {
+      if (showNotifications) {
+        handleTriplestoreError(error, this.settings)
+      }
+      console.error('Delete index error:', error)
+      return false
+    }
+  }
+
+  async syncFile (file, showNotifications = false) {
     const absolutePath = this.app.vault.adapter.getFullPath(file.path)
     const command = `${this.settings.osgPath} sync --file "${absolutePath}"`
 
@@ -28,11 +62,7 @@ export class SyncManager {
     }
 
     try {
-      const { exec } = require('child_process')
-      const { promisify } = require('util')
-      const execAsync = promisify(exec)
-
-      const { stdout, stderr } = await execAsync(command)
+      const { stdout, stderr } = await this.executeCommand(command)
 
       if (stderr) {
         console.error('Sync stderr:', stderr)
@@ -56,12 +86,8 @@ export class SyncManager {
     }
   }
 
-  async syncWithTriplestore() {
+  async syncWithTriplestore () {
     try {
-      const { exec } = require('child_process')
-      const { promisify } = require('util')
-      const execAsync = promisify(exec)
-
       // Get the vault path
       const vaultPath = this.app.vault.adapter.basePath ||
         this.app.vault.adapter.getBasePath?.() || ''
@@ -69,7 +95,7 @@ export class SyncManager {
       // Try to get git repository root
       let repoPath = vaultPath
       try {
-        const { stdout: gitRoot } = await execAsync(
+        const { stdout: gitRoot } = await this.executeCommand(
           'git rev-parse --show-toplevel', {
             cwd: vaultPath,
           })
@@ -83,12 +109,12 @@ export class SyncManager {
       const repoName = repoPath.split('/').pop() || 'vault'
 
       // Build the sync command
-      const command = `${this.settings.osgPath} sync "${repoPath}"`
+      const command = `${this.settings.osgPath} sync "${repoPath}" --force`
 
       new Notice(`Syncing ${repoName} with triplestore...`)
       console.log('Executing sync command:', command)
 
-      const { stdout, stderr } = await execAsync(command, {
+      const { stdout, stderr } = await this.executeCommand(command, {
         cwd: repoPath,
       })
 

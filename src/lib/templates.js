@@ -6,26 +6,6 @@ import {
 } from 'vault-triplifier'
 import { getNameFromPath } from './uriUtils.js'
 
-function getTemplate () {
-  return `
-\`\`\`osg
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX dot: <http://pending.org/dot/>
-PREFIX oa: <http://www.w3.org/ns/oa#>
-PREFIX schema: <http://schema.org/>
-
-SELECT * WHERE {  
-    GRAPH ?g {
-      __THIS__ ?p ?o
-    }
-    FILTER (?p!=dot:raw)
-  } LIMIT 10
-\`\`\`
-`
-}
-
 const THIS = '__THIS__' // The URI of the main concept corresponding to the active file
 const DOC = '__DOC__' // The URI corresponding to the active file
 const DATE = '__DATE__' // The current date
@@ -122,8 +102,60 @@ function removeFrontmatter (content) {
   return content
 }
 
+function getOSGQueryTemplate () {
+  return `
+
+## Named Query
+
+is a :: osg:Query
+
+osg:description :: DESCRIPTION to the agent
+
+osg:instruction :: INSTRUCTION after query
+
+\`\`\`osg
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX dot: <http://pending.org/dot/>
+PREFIX oa: <http://www.w3.org/ns/oa#>
+PREFIX schema: <http://schema.org/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT * WHERE {  
+    GRAPH __DOC__ {
+      ?s ?p ?o
+    }
+  }
+\`\`\`
+`
+}
+
+function getTemplate () {
+  return `
+\`\`\`osg
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX dot: <http://pending.org/dot/>
+PREFIX oa: <http://www.w3.org/ns/oa#>
+PREFIX schema: <http://schema.org/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT * WHERE {  
+    GRAPH ?g {
+      __THIS__ ?p ?o
+    }
+    FILTER (?p!=dot:raw)
+    FILTER (?p!=dot:contents)
+  } LIMIT 10
+\`\`\`
+`
+}
+
 export {
-  getTemplate,
   replaceAllTokens,
   removeFrontmatter,
+  getOSGQueryTemplate,
+  getTemplate,
 }
