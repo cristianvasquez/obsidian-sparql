@@ -3,22 +3,23 @@ import { Notice } from 'obsidian'
 /**
  * Simple error handler for triplestore connectivity issues
  */
-export function handleTriplestoreError(error, settings) {
+export function handleTriplestoreError (error, settings) {
   const message = error.message || String(error)
   console.log('handleTriplestoreError called with:', message)
 
-  // Triplestore connection errors  
+  // Triplestore connection errors
   if (message.includes('ECONNREFUSED') || message.includes('Failed to fetch')) {
-    showActionNotice('❌ Triplestore is down - cannot reach SPARQL endpoint', 'Start Triplestore', () => {
-      runOSGCommand('triplestore start', settings)
-    })
+    showActionNotice('❌ Triplestore is down - cannot reach SPARQL endpoint',
+      'Start Triplestore', async () => {
+        await runOSGCommand('triplestore start', settings)
+      })
     return true // Handled
   }
 
   return false // Not handled
 }
 
-function showActionNotice(errorMsg, actionText, actionFn) {
+function showActionNotice (errorMsg, actionText, actionFn) {
   const notice = new Notice(`❌ ${errorMsg}`, 0) // Persistent notice
 
   // Add action button to notice
@@ -34,7 +35,7 @@ function showActionNotice(errorMsg, actionText, actionFn) {
   notice.noticeEl.appendChild(button)
 }
 
-async function runOSGCommand(command, settings) {
+async function runOSGCommand (command, settings) {
   try {
     const { exec } = require('child_process')
     const { promisify } = require('util')

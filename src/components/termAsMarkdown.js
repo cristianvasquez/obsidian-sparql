@@ -1,15 +1,21 @@
 import { nameFromUri, propertyFromUri, fileURLToPath } from 'vault-triplifier'
 import {
   getNameFromPath, isFileUri, isPropertyUri,
-} from '../../lib/uriUtils.js'
-import { shrink } from '../../lib/utils.js'
+} from '../lib/uriUtils.js'
 import { pathToFileURL } from 'vault-triplifier'
+import { prefixes } from '../namespaces.js'
 
-function getBasePath (app) {
-  return app.vault.adapter?.basePath || app.vault.adapter?.getBasePath?.() || ''
+function shrink (uriStr) {
+
+  for (const [namespace, prefix] of Object.entries(prefixes)) {
+    if (uriStr.startsWith(namespace)) {
+      return uriStr.replace(namespace, prefix)
+    }
+  }
+  return uriStr
 }
 
-// TODO use Obdisian URLs when the vault is known
+// TODO use Obsidian URLs when the vault is known
 // obsidian://open?vault=experiments&file=SomeNote
 function namedAsMarkdown (term, basePath) {
   const name = nameFromUri(term)
@@ -71,4 +77,4 @@ function safe (value) {
 
 }
 
-export { termAsMarkdown, getBasePath, namedAsMarkdown, safe }
+export { termAsMarkdown }

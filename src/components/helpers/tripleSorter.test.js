@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { sortTriplesBySubject, sortTriplesByProperty } from '../tripleSorter.js'
-import { ns } from '../../../namespaces.js'
+import { sortTriplesBySubject, sortTriplesByProperty } from './tripleSorter.js'
+import { ns } from '../../namespaces.js'
 
 describe('Triple Sorter', () => {
   describe('sortTriplesBySubject', () => {
-    it('should sort subjects by priority: Normal -> MarkdownDocument -> Blank nodes', () => {
+    it('should sort subjects by priority: MarkdownDocument -> Normal -> Blank nodes', () => {
       const triples = [
         // Blank node (should be last)
         {
@@ -34,12 +34,12 @@ describe('Triple Sorter', () => {
 
       const sorted = sortTriplesBySubject(triples)
 
-      // First should be normal subject
-      expect(sorted[0].subject.value).toBe('http://example.org/normal')
-      
-      // Next should be MarkdownDocument subjects (both triples)
+      // First should be MarkdownDocument subjects (both triples)
+      expect(sorted[0].subject.value).toBe('http://example.org/doc1')
       expect(sorted[1].subject.value).toBe('http://example.org/doc1')
-      expect(sorted[2].subject.value).toBe('http://example.org/doc1')
+      
+      // Next should be normal subject
+      expect(sorted[2].subject.value).toBe('http://example.org/normal')
       
       // Last should be blank node
       expect(sorted[3].subject.value).toBe('_:b1')

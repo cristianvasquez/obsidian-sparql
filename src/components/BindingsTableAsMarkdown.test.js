@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateMarkdownTable } from '../BindingsTable.js'
+import { generateMarkdownTable } from './BindingsTableAsMarkdown.js'
 
 // Mock app object
 const mockApp = {
@@ -31,9 +31,9 @@ describe('BindingsTable', () => {
         [mockNamedNode, mockLiteral],
         [mockNamedNode, mockLiteral]
       ]
-      
+
       const result = generateMarkdownTable(header, rows, mockApp)
-      
+
       expect(result).toContain('| resource | label |')
       expect(result).toContain('| --- | --- |')
       expect(result).toContain('Test Value')
@@ -46,7 +46,7 @@ describe('BindingsTable', () => {
         [mockNamedNode, null, mockLiteral], // Missing middle optional
         [mockNamedNode, null, null]         // Missing both optionals
       ]
-      
+
       expect(() => {
         generateMarkdownTable(header, rows, mockApp)
       }).not.toThrow()
@@ -57,9 +57,9 @@ describe('BindingsTable', () => {
       const rows = [
         [mockNamedNode, null]
       ]
-      
+
       const result = generateMarkdownTable(header, rows, mockApp)
-      
+
       expect(result).toContain('| resource | optional |')
       expect(result).toContain('| --- | --- |')
       // The row should have an empty cell for null value
@@ -73,9 +73,9 @@ describe('BindingsTable', () => {
         [null, mockLiteral, null],
         [mockNamedNode, mockLiteral, mockLiteral]
       ]
-      
+
       const result = generateMarkdownTable(header, rows, mockApp)
-      
+
       expect(result).toContain('| col1 | col2 | col3 |')
       expect(result).toContain('| --- | --- | --- |')
       // Should not throw and should contain the non-null values
@@ -87,9 +87,9 @@ describe('BindingsTable', () => {
       const rows = [
         [null, null]
       ]
-      
+
       const result = generateMarkdownTable(header, rows, mockApp)
-      
+
       expect(result).toContain('| col1 | col2 |')
       expect(result).toContain('| --- | --- |')
       expect(result).toContain('|  |  |')

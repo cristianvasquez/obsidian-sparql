@@ -1,8 +1,11 @@
+import { getBasePath } from '../lib/utils.js'
 import {
-  getBasePath,
   termAsMarkdown,
-} from './helpers/renderingUtils.js'
-import { sortTriplesBySubject, sortTriplesByProperty } from './helpers/tripleSorter.js'
+} from './termAsMarkdown.js'
+import {
+  sortTriplesBySubject,
+  sortTriplesByProperty,
+} from './helpers/tripleSorter.js'
 import { ns } from '../namespaces.js'
 
 /**
@@ -12,7 +15,8 @@ import { ns } from '../namespaces.js'
  * @param {string} title - Optional title for the output (empty string to skip title)
  * @returns {string} Markdown with subjects as headers and property-value tables
  */
-export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
+export function resultsToMarkdownTurtle (
+  results, app, title = 'Turtle Output') {
   if (!results || results.length === 0) {
     const titleSection = title ? `# ${title}\n\n` : ''
     return `${titleSection}(No triples found)`
@@ -43,7 +47,7 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
     // Check if this is a MarkdownDocument
     const isMarkdownDocument = triples.some(triple =>
       triple.predicate.value === ns.rdf.type.value &&
-      triple.object.value === ns.dot('MarkdownDocument').value
+      triple.object.value === ns.dot('MarkdownDocument').value,
     )
 
     // Property-Value table
@@ -56,17 +60,22 @@ export function resultsToMarkdownTurtle(results, app, title = 'Turtle Output') {
     let lastPredicate = null
     const propertyRows = sortedTriples.map(result => {
       const predicateValue = result.predicate.value
-      const predicate = predicateValue === lastPredicate ? '' : termAsMarkdown(result.predicate, basePath)
+      const predicate = predicateValue === lastPredicate ? '' : termAsMarkdown(
+        result.predicate, basePath)
       const object = termAsMarkdown(result.object, basePath)
       lastPredicate = predicateValue
       return `| ${escape(predicate)} | ${escape(object)} |`
     })
 
-    const tableContent = [propertyHeader, propertyDivider, ...propertyRows].join('\n')
+    const tableContent = [
+      propertyHeader,
+      propertyDivider,
+      ...propertyRows].join('\n')
 
     if (isMarkdownDocument) {
       // Wrap MarkdownDocument sections in collapsible details
-      sections.push(`<details>\n<summary>Document metadata</summary>\n\n${tableContent}\n\n</details>`)
+      sections.push(
+        `<details>\n<summary>Document metadata</summary>\n\n${tableContent}\n\n</details>`)
     } else {
       // Regular section with header
       sections.push(`## ${escape(subjectMarkdown)}\n\n${tableContent}`)

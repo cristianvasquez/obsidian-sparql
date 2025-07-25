@@ -1,10 +1,11 @@
 import { MarkdownRenderer } from 'obsidian'
 import { Parser } from 'sparqljs'
+import { generateMarkdownTable } from '../components/BindingsTableAsMarkdown.js'
+import { resultsToMarkdownTurtle } from '../components/turtleAsMarkdown.js'
 import { prettyPrint } from '../lib/prettyPrint.js'
 import { replaceAllTokens } from '../lib/templates.js'
 import { ns } from '../namespaces.js'
-import { resultsToMarkdownTurtle } from './MarkdownTurtle.js'
-import { generateMarkdownTable } from './BindingsTable.js'
+
 import { handleTriplestoreError } from '../lib/simpleErrorHandler.js'
 
 /**
@@ -25,7 +26,8 @@ export async function renderSparqlView (
     const repoPath = context.app.vault.adapter.basePath
 
     // Replace template variables
-    const replacedQuery = replaceAllTokens(source, absolutePath, activeFile, repoPath)
+    const replacedQuery = replaceAllTokens(source, absolutePath, activeFile,
+      repoPath)
 
     // Parse query to determine type
     const parser = new Parser({ skipValidation: true, sparqlStar: true })
@@ -47,10 +49,10 @@ export async function renderSparqlView (
 
   } catch (error) {
     console.error('SparqlView error:', error)
-    
+
     // Try to handle with our error handler first
     const handled = handleTriplestoreError(error, context.plugin.settings)
-    
+
     // If not handled, render the error in the content area
     if (!handled) {
       await renderError(error, container, context)

@@ -1,4 +1,4 @@
-import { refreshPanelQueries } from '../components/DebugPanel.js'
+import { refreshPanelQueries } from '../views/MainPanel.js'
 import { getOSGQueryTemplate, getTemplate } from './templates.js'
 
 export class CommandManager {

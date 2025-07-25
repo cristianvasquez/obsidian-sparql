@@ -12,7 +12,7 @@ let currentDropdownSelect = null // Reference to current dropdown for refresh
 /**
  * Load available query templates from the triplestore
  */
-async function loadAvailableQueries(context) {
+async function loadAvailableQueries (context) {
   const discoveryQuery = `PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
@@ -32,7 +32,7 @@ SELECT ?document ?title ?content WHERE {
   try {
     const results = await context.triplestore.select(discoveryQuery)
     const queries = {}
-    
+
     // Add discovered queries
     results.forEach(result => {
       const title = result.title?.value || 'Untitled Query'
@@ -40,19 +40,19 @@ SELECT ?document ?title ?content WHERE {
       const key = title.toLowerCase().replace(/\s+/g, '-')
       queries[key] = content
     })
-    
+
     // Only use hardcoded queries as fallback if no queries were discovered
     if (Object.keys(queries).length === 0) {
       console.log('No queries discovered, using hardcoded fallback')
       Object.assign(queries, QUERY_TEMPLATES)
     }
-    
+
     availableQueries = queries
     return queries
   } catch (error) {
     console.error('Failed to load available queries:', error)
     // Fallback to hardcoded templates
-    availableQueries = {...QUERY_TEMPLATES}
+    availableQueries = { ...QUERY_TEMPLATES }
     return availableQueries
   }
 }
@@ -60,15 +60,16 @@ SELECT ?document ?title ?content WHERE {
 /**
  * Populate dropdown with available queries
  */
-function populateDropdown(select, queries) {
+function populateDropdown (select, queries) {
   // Clear existing options
   select.innerHTML = ''
-  
+
   // Add options for each query
   Object.keys(queries).forEach(key => {
     const option = document.createElement('option')
     option.value = key
-    option.textContent = key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    option.textContent = key.replace(/-/g, ' ').
+      replace(/\b\w/g, l => l.toUpperCase())
     select.appendChild(option)
   })
 }
@@ -152,34 +153,36 @@ function createControls (context, onTemplateChange, onModeChange) {
  */
 async function renderQuery (container, templateKey, context) {
   const activeFile = context.app.workspace.getActiveFile()
-  const absolutePath = activeFile ? context.app.vault.adapter.getFullPath(activeFile.path) : ''
-  
+  const absolutePath = activeFile ? context.app.vault.adapter.getFullPath(
+    activeFile.path) : ''
+
   // Get the raw markdown template
   const markdownTemplate = availableQueries[templateKey]
   if (!markdownTemplate) {
     console.error(`Template '${templateKey}' not found`)
     return
   }
-  
+
   // Remove frontmatter
   const cleanedMarkdown = removeFrontmatter(markdownTemplate)
-  
+
   // Apply unified token replacement to the entire markdown content
-  const processedMarkdown = replaceAllTokens(cleanedMarkdown, absolutePath, activeFile)
-  
+  const processedMarkdown = replaceAllTokens(cleanedMarkdown, absolutePath,
+    activeFile)
+
   // Update the code block type based on rich mode
   const finalMarkdown = processedMarkdown.replace(
     /```osg\n/g,
-    `\`\`\`${isRichMode ? 'osg' : 'osg-debug'}\n`
+    `\`\`\`${isRichMode ? 'osg' : 'osg-debug'}\n`,
   )
-  
+
   await renderMarkdown(container, finalMarkdown, context)
 }
 
 /**
  * Helper to render markdown
  */
-async function renderMarkdown(container, markdown, context) {
+async function renderMarkdown (container, markdown, context) {
   const activeFile = context.app.workspace.getActiveFile()
   const sourcePath = activeFile ? activeFile.path : ''
 
@@ -205,15 +208,15 @@ async function renderMarkdown(container, markdown, context) {
 /**
  * Refresh available queries from triplestore
  */
-export async function refreshPanelQueries(context) {
+export async function refreshPanelQueries (context) {
   // Force reload queries from triplestore
   queriesLoaded = false
   await loadAvailableQueries(context)
-  
+
   // Update dropdown if it exists
   if (currentDropdownSelect) {
     populateDropdown(currentDropdownSelect, availableQueries)
-    
+
     // Ensure selectedTemplateKey exists in available queries
     if (!availableQueries[selectedTemplateKey]) {
       // First try to use 'current-file' as default
@@ -227,7 +230,7 @@ export async function refreshPanelQueries(context) {
         }
       }
     }
-    
+
     // Set the dropdown value after populating
     currentDropdownSelect.value = selectedTemplateKey
   }
@@ -236,7 +239,7 @@ export async function refreshPanelQueries(context) {
 /**
  * Initialize the debug panel (only called once when panel is first opened)
  */
-async function initializeDebugPanel(container, context) {
+async function initializeDebugPanel (container, context) {
   container.innerHTML = ''
 
   // Load available queries from triplestore only once
@@ -263,7 +266,7 @@ async function initializeDebugPanel(container, context) {
 
   // Update dropdown with loaded queries
   populateDropdown(select, availableQueries)
-  
+
   // Ensure selectedTemplateKey exists in available queries
   if (!availableQueries[selectedTemplateKey]) {
     // First try to use 'current-file' as default
@@ -277,7 +280,7 @@ async function initializeDebugPanel(container, context) {
       }
     }
   }
-  
+
   // Set the dropdown value after populating
   select.value = selectedTemplateKey
 
@@ -290,7 +293,7 @@ async function initializeDebugPanel(container, context) {
     if (linkEl) {
       const href = linkEl.getAttribute('data-href') ||
         linkEl.getAttribute('href')
-      
+
       if (href) {
         // Handle internal wiki links
         if (linkEl.classList.contains('internal-link')) {
@@ -307,9 +310,9 @@ async function initializeDebugPanel(container, context) {
             const filePath = decodeURIComponent(href.replace('file://', ''))
             const relativePath = context.app.vault.adapter.path.relative(
               context.app.vault.adapter.basePath,
-              filePath
+              filePath,
             )
-            
+
             // Try to open the file if it exists in the vault
             const file = context.app.vault.getAbstractFileByPath(relativePath)
             if (file) {
@@ -336,7 +339,7 @@ async function initializeDebugPanel(container, context) {
 /**
  * Update only the query content for file changes (lightweight)
  */
-async function updateQueryContent(container, context) {
+async function updateQueryContent (container, context) {
   // Only update the query content, not the entire panel
   await renderQuery(container, selectedTemplateKey, context)
 }
@@ -344,7 +347,7 @@ async function updateQueryContent(container, context) {
 /**
  * Main entry point - decides whether to initialize or just update content
  */
-export async function renderDebugPanel (container, context, forceInit = false) {
+export async function renderPanel (container, context, forceInit = false) {
   // If container is empty or force init, do full initialization
   if (container.innerHTML === '' || forceInit) {
     await initializeDebugPanel(container, context)

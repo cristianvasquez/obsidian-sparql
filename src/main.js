@@ -1,5 +1,5 @@
 import { Plugin } from 'obsidian'
-import { renderSparqlView } from './components/SparqlView.js'
+import { renderSparqlView } from './views/SparqlView.js'
 import Client from 'sparql-http-client/ParsingClient'
 import Triplestore from './lib/Triplestore.js'
 import { DEFAULT_SETTINGS, SparqlSettingTab } from './lib/settings.js'
@@ -16,12 +16,12 @@ export default class Prototype_11 extends Plugin {
     await this.loadSettings()
 
     this.triplestore = new Triplestore(
-      new Client(this.settings.clientSettings)
+      new Client(this.settings.clientSettings),
     )
 
     this.syncManager = new SyncManager(this.app, this.settings)
     this.commandManager = new CommandManager(this, this.syncManager)
-    
+
     this.commandManager.registerCommands()
     this.commandManager.registerEvents()
     this.addSettingTab(new SparqlSettingTab(this.app, this))

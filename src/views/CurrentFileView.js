@@ -1,5 +1,5 @@
 import { ItemView } from 'obsidian'
-import { renderDebugPanel } from '../components/DebugPanel.js'
+import { renderPanel } from './MainPanel.js'
 
 export const SIDE_VIEW_ID = `obsidian-sparql-sideview`
 
@@ -22,7 +22,7 @@ export class CurrentFileView extends ItemView {
   async onOpen () {
     // Use the proper content container for ItemView
     this.container = this.contentEl
-    await renderDebugPanel(this.container, this.appContext, true) // Force init on first open
+    await renderPanel(this.container, this.appContext, true) // Force init on first open
 
     // Store reference in plugin for file change updates
     this.appContext.plugin.debugView = this
@@ -37,7 +37,7 @@ export class CurrentFileView extends ItemView {
 
   async updateForFile () {
     if (this.container) {
-      await renderDebugPanel(this.container, this.appContext)
+      await renderPanel(this.container, this.appContext)
     }
   }
 }

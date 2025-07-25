@@ -4,7 +4,7 @@ import {
   replaceInternalLinks, 
   replaceAllTokens,
   removeFrontmatter
-} from '../templates.js'
+} from './templates.js'
 
 describe('Template System', () => {
   

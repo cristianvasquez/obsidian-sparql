@@ -10,7 +10,7 @@ import { ns } from '../../namespaces.js'
  * @param {Array} results - SPARQL CONSTRUCT results (array of triples)
  * @returns {Array} Sorted array of triples
  */
-export function sortTriplesBySubject(results) {
+export function sortTriplesBySubject (results) {
   // First pass: build priority map for all subjects
   const priorityMap = buildSubjectPriorityMap(results)
 
@@ -44,7 +44,7 @@ export function sortTriplesBySubject(results) {
  * @param {Array} results - All SPARQL triples
  * @returns {Map} Map of subject value to priority number
  */
-function buildSubjectPriorityMap(results) {
+function buildSubjectPriorityMap (results) {
   const priorityMap = new Map()
 
   for (const triple of results) {
@@ -64,7 +64,7 @@ function buildSubjectPriorityMap(results) {
     }
     // Check if it's a dot:MarkdownDocument: priority 2
     else if (triple.predicate.value === ns.rdf.type.value &&
-             triple.object.value === ns.dot('MarkdownDocument').value) {
+      triple.object.value === ns.dot('MarkdownDocument').value) {
       priority = 1
     }
 
@@ -82,7 +82,7 @@ function buildSubjectPriorityMap(results) {
  * @param {Array} triples - Array of triples for a single subject
  * @returns {Array} Sorted array of triples
  */
-export function sortTriplesByProperty(triples) {
+export function sortTriplesByProperty (triples) {
   return [...triples].sort((a, b) => {
     const predicateA = a.predicate.value
     const predicateB = b.predicate.value
