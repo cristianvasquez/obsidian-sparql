@@ -4,6 +4,9 @@ export const DEFAULT_SETTINGS = {
   clientSettings: {
     endpointUrl: 'http://localhost:7878/query',
     updateUrl: 'http://localhost:7878/update',
+    headers: {
+      'union-default-graph': true,
+    },
     user: '',
     password: '',
   },
@@ -50,18 +53,20 @@ export class SparqlSettingTab extends PluginSettingTab {
     )
 
     // OSG Path setting
-    new Setting(containerEl).setName('OSG Path').setDesc('Path to the OSG executable').addText((text) => {
-      text.setValue(this.plugin.settings.osgPath).
-        setPlaceholder('/home/cvasquez/.local/share/pnpm/osg').
-        onChange(async (value) => {
-          this.plugin.settings.osgPath = value
-          await this.plugin.saveSettings()
-        })
+    new Setting(containerEl).setName('OSG Path').
+      setDesc('Path to the OSG executable').
+      addText((text) => {
+        text.setValue(this.plugin.settings.osgPath).
+          setPlaceholder('/home/cvasquez/.local/share/pnpm/osg').
+          onChange(async (value) => {
+            this.plugin.settings.osgPath = value
+            await this.plugin.saveSettings()
+          })
 
-      text.inputEl.style.width = '100%'
-      text.inputEl.style.fontFamily = 'var(--font-monospace)'
-      text.inputEl.style.fontSize = '14px'
-    })
+        text.inputEl.style.width = '100%'
+        text.inputEl.style.fontFamily = 'var(--font-monospace)'
+        text.inputEl.style.fontSize = '14px'
+      })
 
     new Setting(containerEl).setName('Allow updates').
       setDesc('Enable SPARQL updates in code snippets').
