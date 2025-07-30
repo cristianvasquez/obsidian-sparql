@@ -1,6 +1,6 @@
 import { MarkdownRenderer } from 'obsidian'
 import { Parser } from 'sparqljs'
-import { generateMarkdownTable } from '../components/BindingsTableAsMarkdown.js'
+import { generateMarkdownTable, generateMarkdownTableRaw } from '../components/BindingsTableAsMarkdown.js'
 import { resultsToMarkdownTurtle } from '../components/turtleAsMarkdown.js'
 import { prettyPrint } from '../lib/prettyPrint.js'
 import { replaceAllTokens } from '../lib/templates.js'
@@ -78,7 +78,10 @@ async function renderSelectResults (results, container, context, debug, query) {
     // Convert results to table format
     const header = Object.keys(results[0])
     const rows = results.map(row => header.map(key => row[key] || null))
-    const markdownTable = generateMarkdownTable(header, rows, context.app)
+    // Use raw table for debug mode, rich table for normal mode
+    const markdownTable = debug 
+      ? generateMarkdownTableRaw(header, rows, context.app)
+      : generateMarkdownTable(header, rows, context.app)
     markdown += markdownTable
   }
 

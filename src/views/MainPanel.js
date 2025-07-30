@@ -4,7 +4,7 @@ import { replaceAllTokens, removeFrontmatter } from '../lib/templates.js'
 
 // Store selected template and mode globally to persist across file changes
 let selectedTemplateKey = 'current-file'
-let isRichMode = true // true = 'osg', false = 'osg-debug'
+let isRichMode = true // true = 'osg' (rich), false = 'osg-debug' (raw)
 let availableQueries = {} // Cache for dynamically loaded queries
 let queriesLoaded = false // Track if queries have been loaded
 let currentDropdownSelect = null // Reference to current dropdown for refresh

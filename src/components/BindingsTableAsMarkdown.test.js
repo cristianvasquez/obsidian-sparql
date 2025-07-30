@@ -1,27 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { generateMarkdownTable } from './BindingsTableAsMarkdown.js'
+import {
+  generateMarkdownTable,
+  generateMarkdownTableRaw,
+} from './BindingsTableAsMarkdown.js'
+import rdf from 'rdf-ext'
 
 // Mock app object
 const mockApp = {
   vault: {
     adapter: {
       path: {
-        absolute: '/mock/vault/path'
-      }
-    }
-  }
+        absolute: '/mock/vault/path',
+      },
+    },
+  },
 }
 
 // Mock RDF terms
-const mockNamedNode = {
-  termType: 'NamedNode',
-  value: 'http://example.org/resource'
-}
-
-const mockLiteral = {
-  termType: 'Literal',
-  value: 'Test Value'
-}
+const mockNamedNode = rdf.namedNode('http://example.org/resource')
+const mockLiteral = rdf.literal('Test Value')
 
 describe('BindingsTable', () => {
   describe('generateMarkdownTable', () => {
@@ -29,7 +26,7 @@ describe('BindingsTable', () => {
       const header = ['resource', 'label']
       const rows = [
         [mockNamedNode, mockLiteral],
-        [mockNamedNode, mockLiteral]
+        [mockNamedNode, mockLiteral],
       ]
 
       const result = generateMarkdownTable(header, rows, mockApp)
@@ -44,7 +41,7 @@ describe('BindingsTable', () => {
       const rows = [
         [mockNamedNode, mockLiteral, null], // Has optional value
         [mockNamedNode, null, mockLiteral], // Missing middle optional
-        [mockNamedNode, null, null]         // Missing both optionals
+        [mockNamedNode, null, null],         // Missing both optionals
       ]
 
       expect(() => {
@@ -55,7 +52,7 @@ describe('BindingsTable', () => {
     it('should render null values as empty cells', () => {
       const header = ['resource', 'optional']
       const rows = [
-        [mockNamedNode, null]
+        [mockNamedNode, null],
       ]
 
       const result = generateMarkdownTable(header, rows, mockApp)
@@ -71,7 +68,7 @@ describe('BindingsTable', () => {
       const rows = [
         [mockLiteral, null, mockNamedNode],
         [null, mockLiteral, null],
-        [mockNamedNode, mockLiteral, mockLiteral]
+        [mockNamedNode, mockLiteral, mockLiteral],
       ]
 
       const result = generateMarkdownTable(header, rows, mockApp)
@@ -85,7 +82,7 @@ describe('BindingsTable', () => {
     it('should handle completely null rows', () => {
       const header = ['col1', 'col2']
       const rows = [
-        [null, null]
+        [null, null],
       ]
 
       const result = generateMarkdownTable(header, rows, mockApp)
@@ -93,6 +90,93 @@ describe('BindingsTable', () => {
       expect(result).toContain('| col1 | col2 |')
       expect(result).toContain('| --- | --- |')
       expect(result).toContain('|  |  |')
+    })
+
+    it('should not repeat values in the same column across consecutive rows',
+      () => {
+        const header = ['resource', 'type']
+        const rows = [
+          [mockNamedNode, mockLiteral],
+          [mockNamedNode, mockLiteral], // Same values as previous row
+          [mockLiteral, mockNamedNode],  // Different values
+        ]
+
+        const result = generateMarkdownTable(header, rows, mockApp)
+        const lines = result.split('\n')
+
+        // First data row should have both values
+        expect(lines[2]).toContain('Test Value')
+        // Second data row should have empty cells (repeated values)
+        expect(lines[3]).toMatch(/\|\s*\|\s*\|/)
+        // Third data row should have different values displayed
+        expect(lines[4]).toContain('Test Value')
+      })
+  })
+
+  describe('generateMarkdownTableRaw', () => {
+    it('should generate markdown table with raw toString() values', () => {
+      const header = ['resource', 'label']
+      const rows = [
+        [mockNamedNode, mockLiteral],
+        [mockNamedNode, mockLiteral],
+      ]
+
+      const result = generateMarkdownTableRaw(header, rows, mockApp)
+
+      expect(result).toContain('| resource | label |')
+      expect(result).toContain('| --- | --- |')
+      expect(result).toContain('<http://example.org/resource>')
+      expect(result).toContain('Test Value')
+      // Should not contain markdown links, just raw values
+      expect(result).not.toContain('[')
+      expect(result).not.toContain('](')
+    })
+
+    it('should handle null values in raw mode', () => {
+      const header = ['resource', 'optional']
+      const rows = [
+        [mockNamedNode, null],
+      ]
+
+      const result = generateMarkdownTableRaw(header, rows, mockApp)
+
+      expect(result).toContain('| resource | optional |')
+      expect(result).toContain('| --- | --- |')
+      expect(result).toContain('<http://example.org/resource>')
+      // Should have empty cell for null
+      expect(result).toMatch(/\|\s*<http:\/\/example\.org\/resource>\s*\|\s*\|/)
+    })
+
+    it('should always show all values (no non-repeating logic in raw mode)',
+      () => {
+        const header = ['resource', 'type']
+        const rows = [
+          [mockNamedNode, mockLiteral],
+          [mockNamedNode, mockLiteral], // Same values as previous row
+          [mockLiteral, mockNamedNode],
+        ]
+
+        const result = generateMarkdownTableRaw(header, rows, mockApp)
+        const lines = result.split('\n')
+
+        // All rows should show their values, no skipping for repetition
+        expect(lines[2]).toContain('<http://example.org/resource>')
+        expect(lines[2]).toContain('Test Value')
+        expect(lines[3]).toContain('<http://example.org/resource>')
+        expect(lines[3]).toContain('Test Value')
+        expect(lines[4]).toContain('Test Value')
+        expect(lines[4]).toContain('<http://example.org/resource>')
+      })
+
+    it('should escape pipe characters in raw mode', () => {
+      const mockLiteralWithPipe = rdf.literal('Value | With | Pipes')
+
+      const header = ['resource']
+      const rows = [[mockLiteralWithPipe]]
+
+      const result = generateMarkdownTableRaw(header, rows, mockApp)
+
+      expect(result).toContain('Value \\| With \\| Pipes')
     })
   })
 })

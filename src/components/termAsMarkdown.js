@@ -77,4 +77,4 @@ function safe (value) {
 
 }
 
-export { termAsMarkdown }
+export { termAsMarkdown, safe }
