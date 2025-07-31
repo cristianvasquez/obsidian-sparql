@@ -10,7 +10,7 @@ export class CommandManager {
   registerCommands () {
     this.plugin.addCommand({
       id: 'open-obsidian-sparql',
-      name: 'Open debug panel',
+      name: 'Open panel',
       checkCallback: (checking) => {
         if (this.plugin.app.workspace.activeLeaf) {
           if (!checking) this.plugin.activateSidePanel()
@@ -22,7 +22,7 @@ export class CommandManager {
 
     this.plugin.addCommand({
       id: 'insert-sparql-template',
-      name: 'Insert SPARQL template',
+      name: 'Insert example SPARQL code-block',
       editorCallback: (editor) => {
         editor.replaceRange(getTemplate(), editor.getCursor())
       },
@@ -54,14 +54,14 @@ export class CommandManager {
     })
 
     this.plugin.addCommand({
-      id: 'rebuild-index',
-      name: 'Rebuild index',
+      id: 'index-vault',
+      name: 'Re-index vault',
       callback: () => this.controller.rebuildIndex(),
     })
 
     this.plugin.addCommand({
       id: 'refresh-panel-queries',
-      name: 'Refresh debug panel queries',
+      name: 'Refresh panel',
       callback: async () => {
         if (this.plugin.debugView) {
           await refreshPanelQueries(this.plugin.appContext)
@@ -74,9 +74,11 @@ export class CommandManager {
 
     this.plugin.registerEvent(
       this.plugin.app.vault.on('modify', async (file) => {
-        // Always sync when file is modified/saved
-        const content = await this.plugin.app.vault.read(file)
-        await this.controller.syncFile(file, content)
+        // Only sync when file is modified/saved if setting is enabled
+        if (this.plugin.settings.indexOnSave) {
+          const content = await this.plugin.app.vault.read(file)
+          await this.controller.syncFile(file, content)
+        }
         // Update debug panel if open
         if (file && this.plugin.debugView) {
           await this.plugin.debugView.updateForFile()
@@ -87,14 +89,15 @@ export class CommandManager {
     this.plugin.registerEvent(
       this.plugin.app.vault.on('rename', async (file, oldPath) => {
         await this.controller.deleteNamedGraph(oldPath)
-        // Always sync when file is modified/saved
-        const content = await this.plugin.app.vault.read(file)
-        await this.controller.syncFile(file, content)
+        // Only sync renamed file if indexOnSave is enabled
+        if (this.plugin.settings.indexOnSave) {
+          const content = await this.plugin.app.vault.read(file)
+          await this.controller.syncFile(file, content)
+        }
         // Update debug panel if open
         if (file && this.plugin.debugView) {
           await this.plugin.debugView.updateForFile()
         }
-
       }),
     )
 
@@ -105,9 +108,15 @@ export class CommandManager {
       }),
     )
 
-    // Update debug panel when switching files
+    // Update debug panel when switching files and optionally index on open
     this.plugin.registerEvent(
       this.plugin.app.workspace.on('file-open', async (file) => {
+        // Index file on open if setting is enabled
+        if (file && this.plugin.settings.indexOnOpen) {
+          const content = await this.plugin.app.vault.read(file)
+          await this.controller.syncFile(file, content)
+        }
+        // Update debug panel if open
         if (file && this.plugin.debugView) {
           await this.plugin.debugView.updateForFile()
         }

@@ -5,8 +5,8 @@ import { replaceAllTokens, removeFrontmatter } from '../lib/templates.js'
 // Store selected template and mode globally to persist across file changes
 let selectedTemplateKey = 'current-file'
 let isRichMode = true // true = 'osg' (rich), false = 'osg-debug' (raw)
-let availableQueries = {} // Cache for dynamically loaded queries
-let queriesLoaded = false // Track if queries have been loaded
+let availablePanels = {} // Cache for dynamically loaded panels
+let panelsLoaded = false // Track if panels have been loaded
 let currentDropdownSelect = null // Reference to current dropdown for refresh
 
 /**
@@ -16,7 +16,7 @@ export async function loadQueriesViaObsidian (context) {
   const queries = {}
 
   try {
-    const searchQuery = context.plugin.settings.panelObsidianQuery ||
+    const searchQuery = context.plugin.settings.panelTag ||
       'panel/query'
     const tag = searchQuery.replace(/^tag:/, '').trim() // e.g., "#panel/query"
 
@@ -91,7 +91,7 @@ function extractTagsFromCache (cache) {
  */
 async function loadQueriesViaSPARQL (context) {
   // Use configurable query from settings
-  const discoveryQuery = context.plugin.settings.panelDiscoveryQuery
+  const discoveryQuery = context.plugin.settings.panelQuery
 
 
   try {
@@ -115,27 +115,33 @@ async function loadQueriesViaSPARQL (context) {
 }
 
 /**
- * Load available query templates from the triplestore or vault files
+ * Load available panels from both SPARQL and Obsidian sources
  */
-async function loadAvailableQueries (context) {
-  const discoveryMethod = context.plugin.settings.panelQueryDiscovery ||
-    'sparql'
+async function loadAvailablePanels (context) {
+  let panels = {}
 
-  let queries = {}
-
-  if (discoveryMethod === 'obsidian') {
-    queries = await loadQueriesViaObsidian(context)
-  } else {
-    queries = await loadQueriesViaSPARQL(context)
+  // Load from both sources and merge (SPARQL takes precedence for duplicates)
+  try {
+    const obsidianPanels = await loadQueriesViaObsidian(context)
+    Object.assign(panels, obsidianPanels)
+  } catch (error) {
+    console.warn('Failed to load panels from Obsidian:', error)
   }
 
-  // Only use hardcoded queries as fallback if no queries were discovered
-  if (Object.keys(queries).length === 0) {
-    Object.assign(queries, QUERY_TEMPLATES)
+  try {
+    const sparqlPanels = await loadQueriesViaSPARQL(context)
+    Object.assign(panels, sparqlPanels) // SPARQL takes precedence
+  } catch (error) {
+    console.warn('Failed to load panels from SPARQL:', error)
   }
 
-  availableQueries = queries
-  return queries
+  // Only use hardcoded fallback if no panels were discovered from either source
+  if (Object.keys(panels).length === 0) {
+    Object.assign(panels, QUERY_TEMPLATES)
+  }
+
+  availablePanels = panels
+  return panels
 }
 
 /**
@@ -223,10 +229,25 @@ function createControls (context, onTemplateChange, onModeChange) {
   modeGroup.appendChild(richCheckbox)
   modeGroup.appendChild(richLabel)
 
+  // Refresh button
+  const refreshButton = document.createElement('button')
+  refreshButton.textContent = '🔄'
+  refreshButton.title = 'Refresh panels'
+  refreshButton.style.padding = '2px 6px'
+  refreshButton.style.fontSize = '12px'
+  refreshButton.style.background = 'var(--background-primary)'
+  refreshButton.style.border = '1px solid var(--background-modifier-border)'
+  refreshButton.style.borderRadius = '3px'
+  refreshButton.style.cursor = 'pointer'
+  refreshButton.style.opacity = '0.7'
+  refreshButton.addEventListener('mouseenter', () => refreshButton.style.opacity = '1')
+  refreshButton.addEventListener('mouseleave', () => refreshButton.style.opacity = '0.7')
+
   container.appendChild(templateGroup)
   container.appendChild(modeGroup)
+  container.appendChild(refreshButton)
 
-  return { container, select }
+  return { container, select, refreshButton }
 }
 
 /**
@@ -238,7 +259,7 @@ async function renderQuery (container, templateKey, context) {
     activeFile.path) : ''
 
   // Get the raw markdown template
-  const markdownTemplate = availableQueries[templateKey]
+  const markdownTemplate = availablePanels[templateKey]
   if (!markdownTemplate) {
     console.error(`Template '${templateKey}' not found`)
     return
@@ -287,25 +308,25 @@ async function renderMarkdown (container, markdown, context) {
 }
 
 /**
- * Refresh available queries from triplestore
+ * Refresh available panels from all sources
  */
 export async function refreshPanelQueries (context) {
-  // Force reload queries from triplestore
-  queriesLoaded = false
-  await loadAvailableQueries(context)
+  // Force reload panels from all sources
+  panelsLoaded = false
+  await loadAvailablePanels(context)
 
   // Update dropdown if it exists
   if (currentDropdownSelect) {
-    populateDropdown(currentDropdownSelect, availableQueries)
+    populateDropdown(currentDropdownSelect, availablePanels)
 
-    // Ensure selectedTemplateKey exists in available queries
-    if (!availableQueries[selectedTemplateKey]) {
+    // Ensure selectedTemplateKey exists in available panels
+    if (!availablePanels[selectedTemplateKey]) {
       // First try to use 'current-file' as default
-      if (availableQueries['current-file']) {
+      if (availablePanels['current-file']) {
         selectedTemplateKey = 'current-file'
       } else {
-        // Otherwise use the first available query
-        const firstKey = Object.keys(availableQueries)[0]
+        // Otherwise use the first available panel
+        const firstKey = Object.keys(availablePanels)[0]
         if (firstKey) {
           selectedTemplateKey = firstKey
         }
@@ -323,14 +344,14 @@ export async function refreshPanelQueries (context) {
 async function initializeDebugPanel (container, context) {
   container.innerHTML = ''
 
-  // Load available queries from triplestore only once
-  if (!queriesLoaded) {
-    await loadAvailableQueries(context)
-    queriesLoaded = true
+  // Load available panels from all sources only once
+  if (!panelsLoaded) {
+    await loadAvailablePanels(context)
+    panelsLoaded = true
   }
 
   // Create controls with change handlers
-  const { container: controlsContainer, select } = createControls(
+  const { container: controlsContainer, select, refreshButton } = createControls(
     context,
     (templateKey) => {
       renderQuery(container, templateKey, context)
@@ -340,22 +361,38 @@ async function initializeDebugPanel (container, context) {
     },
   )
 
+  // Add refresh button click handler
+  refreshButton.addEventListener('click', async () => {
+    refreshButton.textContent = '⏳'
+    refreshButton.disabled = true
+    try {
+      await refreshPanelQueries(context)
+      // Re-render current query with updated panels
+      await renderQuery(container, selectedTemplateKey, context)
+    } catch (error) {
+      console.error('Failed to refresh panels:', error)
+    } finally {
+      refreshButton.textContent = '🔄'
+      refreshButton.disabled = false
+    }
+  })
+
   container.appendChild(controlsContainer)
 
   // Store reference to dropdown for refresh functionality
   currentDropdownSelect = select
 
-  // Update dropdown with loaded queries
-  populateDropdown(select, availableQueries)
+  // Update dropdown with loaded panels
+  populateDropdown(select, availablePanels)
 
-  // Ensure selectedTemplateKey exists in available queries
-  if (!availableQueries[selectedTemplateKey]) {
+  // Ensure selectedTemplateKey exists in available panels
+  if (!availablePanels[selectedTemplateKey]) {
     // First try to use 'current-file' as default
-    if (availableQueries['current-file']) {
+    if (availablePanels['current-file']) {
       selectedTemplateKey = 'current-file'
     } else {
-      // Otherwise use the first available query
-      const firstKey = Object.keys(availableQueries)[0]
+      // Otherwise use the first available panel
+      const firstKey = Object.keys(availablePanels)[0]
       if (firstKey) {
         selectedTemplateKey = firstKey
       }

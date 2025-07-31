@@ -7,8 +7,6 @@ import { CommandManager } from './lib/commands.js'
 import { CurrentFileView, SIDE_VIEW_ID } from './views/CurrentFileView.js'
 import { ns } from './namespaces.js'
 
-const PLUGIN_NAME = 'obsidian-sparql'
-
 export default class SparqlPlugin extends Plugin {
   async onload () {
     await this.loadSettings()
@@ -80,8 +78,8 @@ export default class SparqlPlugin extends Plugin {
   }
 
   // Reinitialize controller when mode changes
-  reinitializeController() {
-    
+  reinitializeController () {
+
     // Create new controller based on current mode
     if (this.settings.mode === 'embedded') {
       this.controller = new LocalController(this.app, this.settings)
@@ -91,7 +89,7 @@ export default class SparqlPlugin extends Plugin {
 
     // Update command manager with new controller
     this.commandManager.controller = this.controller
-    
+
     // Update app context
     this.appContext.controller = this.controller
   }
