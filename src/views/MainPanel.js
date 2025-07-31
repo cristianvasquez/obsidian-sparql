@@ -30,7 +30,7 @@ SELECT ?document ?title ?content WHERE {
 } ORDER BY ?order`
 
   try {
-    const results = await context.triplestore.select(discoveryQuery)
+    const results = await context.controller.select(discoveryQuery)
     const queries = {}
 
     // Add discovered queries

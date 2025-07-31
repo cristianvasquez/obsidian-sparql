@@ -2,9 +2,9 @@ import { refreshPanelQueries } from '../views/MainPanel.js'
 import { getOSGQueryTemplate, getTemplate } from './templates.js'
 
 export class CommandManager {
-  constructor (plugin, syncManager) {
+  constructor (plugin, controller) {
     this.plugin = plugin
-    this.syncManager = syncManager
+    this.controller = controller
   }
 
   registerCommands () {
@@ -42,7 +42,11 @@ export class CommandManager {
       checkCallback: (checking) => {
         const activeFile = this.plugin.app.workspace.getActiveFile()
         if (activeFile) {
-          if (!checking) this.syncManager.syncCurrentFile()
+          if (!checking) {
+            this.plugin.app.vault.read(activeFile).then(content => {
+              this.controller.syncFile(activeFile, content, true)
+            })
+          }
           return true
         }
         return false
@@ -50,9 +54,9 @@ export class CommandManager {
     })
 
     this.plugin.addCommand({
-      id: 'sync-with-triplestore',
-      name: 'Sync with triplestore',
-      callback: () => this.syncManager.syncWithTriplestore(),
+      id: 'rebuild-index',
+      name: 'Rebuild index',
+      callback: () => this.controller.rebuildIndex(),
     })
 
     this.plugin.addCommand({
@@ -71,7 +75,8 @@ export class CommandManager {
     this.plugin.registerEvent(
       this.plugin.app.vault.on('modify', async (file) => {
         // Always sync when file is modified/saved
-        await this.syncManager.syncFile(file)
+        const content = await this.plugin.app.vault.read(file)
+        await this.controller.syncFile(file, content)
         // Update debug panel if open
         if (file && this.plugin.debugView) {
           await this.plugin.debugView.updateForFile()
@@ -81,9 +86,10 @@ export class CommandManager {
 
     this.plugin.registerEvent(
       this.plugin.app.vault.on('rename', async (file, oldPath) => {
-        await this.syncManager.deleteIndex(oldPath)
+        await this.controller.deleteNamedGraph(oldPath)
         // Always sync when file is modified/saved
-        await this.syncManager.syncFile(file)
+        const content = await this.plugin.app.vault.read(file)
+        await this.controller.syncFile(file, content)
         // Update debug panel if open
         if (file && this.plugin.debugView) {
           await this.plugin.debugView.updateForFile()
@@ -94,7 +100,7 @@ export class CommandManager {
 
     this.plugin.registerEvent(
       this.plugin.app.vault.on('delete', async (file) => {
-        await this.syncManager.deleteIndex(file.path)
+        await this.controller.deleteNamedGraph(file.path)
 
       }),
     )

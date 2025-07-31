@@ -1,9 +1,8 @@
 import { Plugin } from 'obsidian'
 import { renderSparqlView } from './views/SparqlView.js'
-import Client from 'sparql-http-client/ParsingClient'
-import Triplestore from './lib/Triplestore.js'
 import { DEFAULT_SETTINGS, SparqlSettingTab } from './lib/settings.js'
-import { SyncManager } from './lib/sync.js'
+import { LocalController } from './lib/local/LocalController.js'
+import { RemoteController } from './lib/remote/RemoteController.js'
 import { CommandManager } from './lib/commands.js'
 import { CurrentFileView, SIDE_VIEW_ID } from './views/CurrentFileView.js'
 import { ns } from './namespaces.js'
@@ -15,12 +14,14 @@ export default class Prototype_11 extends Plugin {
     console.log(`loading ${PLUGIN_NAME}`)
     await this.loadSettings()
 
-    this.triplestore = new Triplestore(
-      new Client(this.settings.clientSettings),
-    )
+    // Initialize the appropriate controller based on mode
+    if (this.settings.mode === 'embedded') {
+      this.controller = new LocalController(this.app, this.settings)
+    } else {
+      this.controller = new RemoteController(this.app, this.settings)
+    }
 
-    this.syncManager = new SyncManager(this.app, this.settings)
-    this.commandManager = new CommandManager(this, this.syncManager)
+    this.commandManager = new CommandManager(this, this.controller)
 
     this.commandManager.registerCommands()
     this.commandManager.registerEvents()
@@ -33,7 +34,7 @@ export default class Prototype_11 extends Plugin {
 
     this.appContext = {
       app: this.app,
-      triplestore: this.triplestore,
+      controller: this.controller,
       ns,
       plugin: this,
     }
@@ -78,6 +79,24 @@ export default class Prototype_11 extends Plugin {
 
   async saveSettings () {
     await this.saveData(this.settings)
+  }
+
+  // Reinitialize controller when mode changes
+  reinitializeController() {
+    console.log(`Reinitializing controller for mode: ${this.settings.mode}`)
+    
+    // Create new controller based on current mode
+    if (this.settings.mode === 'embedded') {
+      this.controller = new LocalController(this.app, this.settings)
+    } else {
+      this.controller = new RemoteController(this.app, this.settings)
+    }
+
+    // Update command manager with new controller
+    this.commandManager.controller = this.controller
+    
+    // Update app context
+    this.appContext.controller = this.controller
   }
 
 }

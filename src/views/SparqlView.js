@@ -18,7 +18,9 @@ export async function renderSparqlView (
     // Get active file
     const activeFile = context.app.workspace.getActiveFile()
     if (!activeFile) {
-      throw new Error('No active file')
+      // Show simple message instead of throwing error
+      container.innerHTML = '<p>No active file</p>'
+      return
     }
 
     // Get absolute path and repo path
@@ -36,11 +38,11 @@ export async function renderSparqlView (
     // Execute query based on type
     let results
     if (parsed.queryType === 'SELECT') {
-      results = await context.triplestore.select(replacedQuery)
+      results = await context.controller.select(replacedQuery)
       await renderSelectResults(results, container, context, debug,
         replacedQuery)
     } else if (parsed.queryType === 'CONSTRUCT') {
-      results = await context.triplestore.construct(replacedQuery)
+      results = await context.controller.construct(replacedQuery)
       await renderConstructQuery(results, container, context, debug,
         replacedQuery)
     } else {
