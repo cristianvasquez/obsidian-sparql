@@ -81,7 +81,6 @@ export default class SparqlPlugin extends Plugin {
 
   // Reinitialize controller when mode changes
   reinitializeController() {
-    console.log(`Reinitializing controller for mode: ${this.settings.mode}`)
     
     // Create new controller based on current mode
     if (this.settings.mode === 'embedded') {

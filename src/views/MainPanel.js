@@ -19,7 +19,6 @@ export async function loadQueriesViaObsidian (context) {
     const searchQuery = context.plugin.settings.panelObsidianQuery ||
       'panel/query'
     const tag = searchQuery.replace(/^tag:/, '').trim() // e.g., "#panel/query"
-    console.log('🔍 [OBSIDIAN] Looking for files tagged with:', tag)
 
     const files = context.app.vault.getMarkdownFiles()
 
@@ -27,7 +26,6 @@ export async function loadQueriesViaObsidian (context) {
       const cache = context.app.metadataCache.getFileCache(file)
       const frontmatter = (cache && cache.frontmatter) || {}
       const tags = extractTagsFromCache(cache)
-      console.log(tags)
 
       if (!tags.includes(tag)) continue
 
@@ -58,8 +56,6 @@ export async function loadQueriesViaObsidian (context) {
         return acc
       }, {})
 
-    console.log(
-      `✅ [OBSIDIAN] Found ${Object.keys(sorted).length} panel queries`)
     return sorted
 
   } catch (error) {
@@ -97,8 +93,6 @@ async function loadQueriesViaSPARQL (context) {
   // Use configurable query from settings
   const discoveryQuery = context.plugin.settings.panelDiscoveryQuery
 
-  console.log('🔍 [SPARQL] Using custom discovery query:',
-    discoveryQuery.substring(0, 100) + '...')
 
   try {
     const results = await context.controller.select(discoveryQuery)
@@ -112,8 +106,6 @@ async function loadQueriesViaSPARQL (context) {
       queries[key] = content
     })
 
-    console.log('✅ [SPARQL] Found', Object.keys(queries).length,
-      'panel queries')
     return queries
   } catch (error) {
     console.error('Failed to load queries via SPARQL:', error)
@@ -128,7 +120,6 @@ async function loadQueriesViaSPARQL (context) {
 async function loadAvailableQueries (context) {
   const discoveryMethod = context.plugin.settings.panelQueryDiscovery ||
     'sparql'
-  console.log('🔄 [PANEL] Using discovery method:', discoveryMethod)
 
   let queries = {}
 
@@ -140,7 +131,6 @@ async function loadAvailableQueries (context) {
 
   // Only use hardcoded queries as fallback if no queries were discovered
   if (Object.keys(queries).length === 0) {
-    console.log('No queries discovered, using hardcoded fallback')
     Object.assign(queries, QUERY_TEMPLATES)
   }
 

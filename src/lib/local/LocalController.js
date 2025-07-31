@@ -1,5 +1,4 @@
 import { Store } from 'oxigraph'
-import rdf from 'rdf-ext'
 import {
   canProcess,
   getFileExtension,
@@ -46,12 +45,23 @@ export class LocalController extends Controller {
 
   async select (sparqlQuery) {
     await this.ensureInitialized()
-    return this.store.query(sparqlQuery, this.queryOptions)
+    const results = this.store.query(sparqlQuery, this.queryOptions)
+    
+    // Convert Map objects to plain objects for consistent interface
+    return Array.from(results).map(binding => {
+      if (binding instanceof Map) {
+        return Object.fromEntries(binding)
+      }
+      return binding
+    })
   }
 
   async construct (sparqlQuery) {
     await this.ensureInitialized()
-    return this.store.query(sparqlQuery, this.queryOptions)
+    const results = this.store.query(sparqlQuery, this.queryOptions)
+    
+    // CONSTRUCT queries return quads/triples, convert to array for consistency
+    return Array.from(results)
   }
 
   async syncFile (file, content, showNotifications = false) {
@@ -76,10 +86,6 @@ export class LocalController extends Controller {
     const pointer = triplify(absolutePath, content, triplifierOptions)
     const graphUri = pathToFileURL(absolutePath)
 
-    // // Add metadata like the external triplifier does
-    // const now = new Date()
-    // pointer.node(graphUri).
-    //   addOut(dct.modified, toRdf(now.toISOString(), ns.xsd.dateTime))
 
     const dataset = pointer.dataset
 
@@ -113,9 +119,8 @@ export class LocalController extends Controller {
 
     this.notifications.info('[Local] Rebuilding embedded database index...')
 
-    // Clear the entire store first
-    const allQuads = this.store.match()
-    for (const quad of allQuads) {
+    // Clear the entire store by deleting all quads
+    for (const quad of this.store.match()) {
       this.store.delete(quad)
     }
 
@@ -155,23 +160,13 @@ export class LocalController extends Controller {
     const absolutePath = this.app.vault.adapter.getFullPath(path)
     const graphUri = pathToFileURL(absolutePath)
 
-    // Find all quads that belong to this file (either as graph or subject/object)
-    const quadsToDelete = this.store.match(null, null, null, null).
-      filter(quad => {
-        // Check if this quad is related to our file URI
-        return quad.subject.value === graphUri.value ||
-          quad.object.value === graphUri.value ||
-          (quad.graph && quad.graph.value === graphUri.value)
-      })
-
-
-    // Delete each quad
+    // Delete all quads in the specific named graph efficiently
+    const quadsInGraph = this.store.match(null, null, null, graphUri)
     let deletedCount = 0
-    for (const quad of quadsToDelete) {
-      if (this.store.has(quad)) {
-        this.store.delete(quad)
-        deletedCount++
-      }
+    
+    for (const quad of quadsInGraph) {
+      this.store.delete(quad)
+      deletedCount++
     }
 
 

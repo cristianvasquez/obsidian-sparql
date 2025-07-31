@@ -54,11 +54,6 @@ function termAsMarkdown (term, basePath) {
     if (term.language) {
       literal += `@${term.language}`
     }
-    // else if (term.datatype && term.datatype.value !==
-    //   'http://www.w3.org/2001/XMLSchema#string') {
-    //   console.log(term.datatype.value, shrink(term.datatype.value))
-    //   literal += `^^<${shrink(term.datatype.value)}>`
-    // }
     return literal
   }
   term.value

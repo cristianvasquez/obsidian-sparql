@@ -15,6 +15,8 @@ CONSTRUCT { ?s ?p ?o } WHERE {
 
   }
 \`\`\`
+
+(Default query - No additional queries were found) 
 `
 const QUERY_TEMPLATES = {
   'current-file': currentFileMarkdown,

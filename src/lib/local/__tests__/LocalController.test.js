@@ -120,7 +120,7 @@ This is a test note.`
       // Results should have graph variable
       if (results.length > 0) {
         const firstResult = results[0]
-        expect(firstResult.has && firstResult.has('g')).toBe(true)
+        expect(firstResult).toHaveProperty('g')
       }
     })
   })
