@@ -77,9 +77,24 @@ async function renderSelectResults (results, container, context, debug, query) {
   if (!results || results.length === 0) {
     markdown += 'No results found.\n'
   } else {
-    // Convert results to table format
-    const header = Object.keys(results[0])
-    const rows = results.map(row => header.map(key => row[key] || null))
+    // Convert results to table format - handle both Map objects (oxigraph) and plain objects
+    const header = results[0] instanceof Map 
+      ? Array.from(results[0].keys())
+      : Object.keys(results[0])
+    
+    const rows = results.map(row => {
+      if (row instanceof Map) {
+        return header.map(key => {
+          const value = row.get(key)
+          return value || null
+        })
+      } else {
+        return header.map(key => {
+          const value = row[key]
+          return value || null  
+        })
+      }
+    })
     // Use raw table for debug mode, rich table for normal mode
     const markdownTable = debug 
       ? generateMarkdownTableRaw(header, rows, context.app)

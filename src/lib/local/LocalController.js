@@ -1,85 +1,185 @@
-import { Notice } from 'obsidian'
+import { Store } from 'oxigraph'
+import rdf from 'rdf-ext'
+import {
+  canProcess,
+  getFileExtension,
+  ns,
+  pathToFileURL,
+  triplify,
+} from 'vault-triplifier'
 import { Controller } from '../Controller.js'
+import { NotificationService } from '../NotificationService.js'
 
 export class LocalController extends Controller {
-  constructor(app, settings) {
+  constructor (app, settings) {
     super(app, settings)
-    console.log('🏠 [EMBEDDED] LocalController initialized - using embedded oxygraph-js database')
+
+    // Store will be initialized asynchronously
+    this.store = null
+    this.isInitialized = false
+    this.initPromise = this.initializeStore()
+    this.notifications = new NotificationService()
   }
 
-  async select(sparqlQuery) {
-    console.log('🔍 [EMBEDDED] LocalController.select() called')
-    console.log('📝 [EMBEDDED] Query:', sparqlQuery)
-    console.log('🔧 [EMBEDDED] TODO: Implement embedded oxygraph-js SELECT query execution')
-    
-    // Return empty results to avoid breaking the UI
-    return { bindings: [] }
-  }
+  async initializeStore () {
+    try {
+      // Create the store directly
+      this.store = new Store()
+      this.isInitialized = true
 
-  async construct(sparqlQuery) {
-    console.log('🔨 [EMBEDDED] LocalController.construct() called')
-    console.log('📝 [EMBEDDED] Query:', sparqlQuery)
-    console.log('🔧 [EMBEDDED] TODO: Implement embedded oxygraph-js CONSTRUCT query execution')
-    
-    // Return empty results to avoid breaking the UI
-    return []
-  }
+      // Configure query options for union default graph
+      this.queryOptions = {
+        use_default_graph_as_union: true,
+      }
 
-  async syncFile(file, content, showNotifications = false) {
-    console.log('🔄 [EMBEDDED] LocalController.syncFile() called')
-    console.log('📁 [EMBEDDED] File path:', file.path)
-    console.log('📊 [EMBEDDED] Content length:', content.length, 'characters')
-    console.log('🔧 [EMBEDDED] TODO: Implement embedded triplifier with content string')
-    
-    if (showNotifications) {
-      new Notice(`[Local] Syncing ${file.basename}...`)
+    } catch (error) {
+      console.error('❌ [EMBEDDED] Failed to initialize oxigraph:', error)
+      throw error
     }
-    
-    // TODO: Process content with embedded triplifier and store in oxygraph-js
-    
-    if (showNotifications) {
-      new Notice(`✓ [Local] ${file.basename} synced`)
+  }
+
+  async ensureInitialized () {
+    if (!this.isInitialized) {
+      await this.initPromise
     }
-    
+  }
+
+  async select (sparqlQuery) {
+    await this.ensureInitialized()
+    return this.store.query(sparqlQuery, this.queryOptions)
+  }
+
+  async construct (sparqlQuery) {
+    await this.ensureInitialized()
+    return this.store.query(sparqlQuery, this.queryOptions)
+  }
+
+  async syncFile (file, content, showNotifications = false) {
+    await this.ensureInitialized()
+
+    if (showNotifications) {
+      this.notifications.info(`[Local] Syncing ${file.basename}...`)
+    }
+
+    // Get absolute path for triplification
+    const absolutePath = this.app.vault.adapter.getFullPath(file.path)
+    const extension = getFileExtension(absolutePath)
+
+    // Check if we can process this file type
+    if (!canProcess(extension)) {
+      return true
+    }
+
+    // Use triplifier to convert content to RDF with configured settings
+    const triplifierOptions = this.settings.embeddedSettings.triplifierOptions
+
+    const pointer = triplify(absolutePath, content, triplifierOptions)
+    const graphUri = pathToFileURL(absolutePath)
+
+    // // Add metadata like the external triplifier does
+    // const now = new Date()
+    // pointer.node(graphUri).
+    //   addOut(dct.modified, toRdf(now.toISOString(), ns.xsd.dateTime))
+
+    const dataset = pointer.dataset
+
+    // First, remove any existing triples for this file (clear the named graph)
+    await this.deleteNamedGraph(file.path)
+
+    // Add all triples from the dataset to the store
+    // Ensure all quads are stored in the file's named graph
+    for (const quad of dataset) {
+      // Create a new quad ensuring it has the correct graph URI
+      const graphedQuad = {
+        subject: quad.subject,
+        predicate: quad.predicate,
+        object: quad.object,
+        graph: graphUri,  // Always use the file's graph URI
+      }
+      this.store.add(graphedQuad)
+    }
+
+
+    if (showNotifications) {
+      this.notifications.success(`[Local] ${file.basename} synced (${dataset.size} triples)`)
+    }
+
     return true
+
   }
 
-  async rebuildIndex() {
-    console.log('🔄 [EMBEDDED] LocalController.rebuildIndex() called')
-    console.log('🔧 [EMBEDDED] TODO: Implement full vault indexing with embedded triplifier')
-    
-    new Notice('[Local] Rebuilding embedded database index...')
-    
-    // Simulate processing all markdown files
+  async rebuildIndex () {
+    await this.ensureInitialized()
+
+    this.notifications.info('[Local] Rebuilding embedded database index...')
+
+    // Clear the entire store first
+    const allQuads = this.store.match()
+    for (const quad of allQuads) {
+      this.store.delete(quad)
+    }
+
+    // Process all markdown files in the vault
     const markdownFiles = this.app.vault.getMarkdownFiles()
-    console.log(`📚 [EMBEDDED] Found ${markdownFiles.length} markdown files to index`)
-    
+    let processedFiles = 0
+
     for (const file of markdownFiles) {
-      const content = await this.app.vault.read(file)
-      console.log(`📄 [EMBEDDED] Processing file: ${file.path} (${content.length} chars)`)
-      // TODO: Process with embedded triplifier and store in oxygraph-js
+      try {
+        const content = await this.app.vault.read(file)
+
+        // Process with embedded triplifier and add to store
+        const success = await this.syncFile(file, content, false)
+        if (success) {
+          processedFiles++
+        }
+      } catch (error) {
+        console.error('❌ [EMBEDDED] Error processing file', file.path, ':',
+          error)
+      }
     }
-    
-    new Notice('✓ [Local] Index rebuilt successfully')
+
+    const totalTriples = this.store.size
+
+    this.notifications.success(`[Local] Index rebuilt: ${processedFiles} files, ${totalTriples} triples`)
+
   }
 
-  async deleteNamedGraph(path, showNotifications = false) {
-    console.log('🗑️ [EMBEDDED] LocalController.deleteNamedGraph() called')
-    console.log('🗃️ [EMBEDDED] Target path:', path)
-    console.log('🔧 [EMBEDDED] TODO: Implement named graph deletion in embedded oxygraph-js database')
-    
+  async deleteNamedGraph (path, showNotifications = false) {
+    await this.ensureInitialized()
+
     if (showNotifications) {
-      new Notice(`[Local] Removing ${path} from embedded database...`)
+      this.notifications.info(`[Local] Removing ${path} from embedded database...`)
     }
-    
-    // TODO: Remove the named graph from the embedded database
-    // This should delete all triples associated with this file's graph
-    console.log('📋 [EMBEDDED] Would delete graph:', `file://${path}`)
-    
+
+    // Get the absolute path and create the graph URI
+    const absolutePath = this.app.vault.adapter.getFullPath(path)
+    const graphUri = pathToFileURL(absolutePath)
+
+    // Find all quads that belong to this file (either as graph or subject/object)
+    const quadsToDelete = this.store.match(null, null, null, null).
+      filter(quad => {
+        // Check if this quad is related to our file URI
+        return quad.subject.value === graphUri.value ||
+          quad.object.value === graphUri.value ||
+          (quad.graph && quad.graph.value === graphUri.value)
+      })
+
+
+    // Delete each quad
+    let deletedCount = 0
+    for (const quad of quadsToDelete) {
+      if (this.store.has(quad)) {
+        this.store.delete(quad)
+        deletedCount++
+      }
+    }
+
+
     if (showNotifications) {
-      new Notice(`✓ [Local] ${path} removed from embedded database`)
+      this.notifications.success(`[Local] ${path} removed from embedded database (${deletedCount} triples)`)
     }
-    
+
     return true
+
   }
 }

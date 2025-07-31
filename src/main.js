@@ -11,7 +11,6 @@ const PLUGIN_NAME = 'obsidian-sparql'
 
 export default class Prototype_11 extends Plugin {
   async onload () {
-    console.log(`loading ${PLUGIN_NAME}`)
     await this.loadSettings()
 
     // Initialize the appropriate controller based on mode
@@ -55,7 +54,6 @@ export default class Prototype_11 extends Plugin {
 
   onunload () {
     this.app.workspace.detachLeavesOfType(SIDE_VIEW_ID)
-    console.log('unloading plugin')
   }
 
   async activateSidePanel () {

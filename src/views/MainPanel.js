@@ -10,24 +10,95 @@ let queriesLoaded = false // Track if queries have been loaded
 let currentDropdownSelect = null // Reference to current dropdown for refresh
 
 /**
- * Load available query templates from the triplestore
+ * Load available query templates using Obsidian metadata (tag-based filtering)
  */
-async function loadAvailableQueries (context) {
-  const discoveryQuery = `PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX dot: <http://pending.org/dot/>
-PREFIX dcterms: <http://purl.org/dc/terms/>
+export async function loadQueriesViaObsidian (context) {
+  const queries = {}
 
-SELECT ?document ?title ?content WHERE {    
-    GRAPH ?g {  
-        ?document a dot:MarkdownDocument .        
-        ?document dot:tag "panel/query" .        
-        ?document dot:raw ?content .        
-    	OPTIONAL { ?document dcterms:title ?title }    
-    	OPTIONAL { ?document <urn:property:order> ?order }
-	}
-} ORDER BY ?order`
+  try {
+    const searchQuery = context.plugin.settings.panelObsidianQuery ||
+      'panel/query'
+    const tag = searchQuery.replace(/^tag:/, '').trim() // e.g., "#panel/query"
+    console.log('🔍 [OBSIDIAN] Looking for files tagged with:', tag)
+
+    const files = context.app.vault.getMarkdownFiles()
+
+    for (const file of files) {
+      const cache = context.app.metadataCache.getFileCache(file)
+      const frontmatter = (cache && cache.frontmatter) || {}
+      const tags = extractTagsFromCache(cache)
+      console.log(tags)
+
+      if (!tags.includes(tag)) continue
+
+      try {
+        const content = await context.app.vault.read(file)
+        let title = typeof frontmatter.title === 'string'
+          ? frontmatter.title.replace(/^"+|"+$/g, '')
+          : file.basename
+
+        let order = 999
+        if (typeof frontmatter.order === 'string') {
+          order = parseInt(frontmatter.order.replace(/"/g, ''), 10) || 999
+        } else if (typeof frontmatter.order === 'number') {
+          order = frontmatter.order
+        }
+
+        const key = title.toLowerCase().replace(/\s+/g, '-')
+        queries[key] = { content, title, order }
+      } catch (err) {
+        console.warn(`⚠️ Failed to read file "${file.path}":`, err)
+      }
+    }
+
+    const sorted = Object.entries(queries).
+      sort(([, a], [, b]) => a.order - b.order).
+      reduce((acc, [key, data]) => {
+        acc[key] = data.content
+        return acc
+      }, {})
+
+    console.log(
+      `✅ [OBSIDIAN] Found ${Object.keys(sorted).length} panel queries`)
+    return sorted
+
+  } catch (error) {
+    console.error('❌ Failed to load queries via Obsidian search:', error)
+    return {}
+  }
+}
+
+/**
+ * Extract tags from metadata cache (frontmatter and inline)
+ */
+function extractTagsFromCache (cache) {
+  const tags = []
+
+  const frontmatterTags = cache?.frontmatter?.tags
+  if (Array.isArray(frontmatterTags)) {
+    tags.push(...frontmatterTags)
+  } else if (typeof frontmatterTags === 'string') {
+    tags.push(...frontmatterTags.split(/\s+/))
+  }
+
+  if (Array.isArray(cache?.tags)) {
+    for (const tagObj of cache.tags) {
+      tags.push(tagObj.tag)
+    }
+  }
+
+  return [...new Set(tags)]
+}
+
+/**
+ * Load available query templates using SPARQL
+ */
+async function loadQueriesViaSPARQL (context) {
+  // Use configurable query from settings
+  const discoveryQuery = context.plugin.settings.panelDiscoveryQuery
+
+  console.log('🔍 [SPARQL] Using custom discovery query:',
+    discoveryQuery.substring(0, 100) + '...')
 
   try {
     const results = await context.controller.select(discoveryQuery)
@@ -41,20 +112,40 @@ SELECT ?document ?title ?content WHERE {
       queries[key] = content
     })
 
-    // Only use hardcoded queries as fallback if no queries were discovered
-    if (Object.keys(queries).length === 0) {
-      console.log('No queries discovered, using hardcoded fallback')
-      Object.assign(queries, QUERY_TEMPLATES)
-    }
-
-    availableQueries = queries
+    console.log('✅ [SPARQL] Found', Object.keys(queries).length,
+      'panel queries')
     return queries
   } catch (error) {
-    console.error('Failed to load available queries:', error)
-    // Fallback to hardcoded templates
-    availableQueries = { ...QUERY_TEMPLATES }
-    return availableQueries
+    console.error('Failed to load queries via SPARQL:', error)
+    console.error('Query used:', discoveryQuery)
+    return {}
   }
+}
+
+/**
+ * Load available query templates from the triplestore or vault files
+ */
+async function loadAvailableQueries (context) {
+  const discoveryMethod = context.plugin.settings.panelQueryDiscovery ||
+    'sparql'
+  console.log('🔄 [PANEL] Using discovery method:', discoveryMethod)
+
+  let queries = {}
+
+  if (discoveryMethod === 'obsidian') {
+    queries = await loadQueriesViaObsidian(context)
+  } else {
+    queries = await loadQueriesViaSPARQL(context)
+  }
+
+  // Only use hardcoded queries as fallback if no queries were discovered
+  if (Object.keys(queries).length === 0) {
+    console.log('No queries discovered, using hardcoded fallback')
+    Object.assign(queries, QUERY_TEMPLATES)
+  }
+
+  availableQueries = queries
+  return queries
 }
 
 /**

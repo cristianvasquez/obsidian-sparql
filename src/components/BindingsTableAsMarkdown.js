@@ -14,8 +14,15 @@ export function generateMarkdownTableRaw (header, rows, app) {
   const headerRow = `| ${header.map(safe).join(' | ')} |`
   const dividerRow = `| ${header.map(() => '---').join(' | ')} |`
   const dataRows = rows.map(row =>
-    `| ${row.map(term => term ? safe(toNT(term)) : '').
-      join(' | ')} |`,
+    `| ${row.map(term => {
+      if (!term) return ''
+      try {
+        return safe(toNT(term))
+      } catch (error) {
+        console.warn('Error converting term to N-Triples:', error, term)
+        return safe(String(term.value || term || ''))
+      }
+    }).join(' | ')} |`,
   )
 
   return [headerRow, dividerRow, ...dataRows].join('\n')

@@ -5,7 +5,6 @@ import { Notice } from 'obsidian'
  */
 export function handleTriplestoreError (error, settings) {
   const message = error.message || String(error)
-  console.log('handleTriplestoreError called with:', message)
 
   // Triplestore connection errors
   if (message.includes('ECONNREFUSED') || message.includes('Failed to fetch')) {
