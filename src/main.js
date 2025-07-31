@@ -9,7 +9,7 @@ import { ns } from './namespaces.js'
 
 const PLUGIN_NAME = 'obsidian-sparql'
 
-export default class Prototype_11 extends Plugin {
+export default class SparqlPlugin extends Plugin {
   async onload () {
     await this.loadSettings()
 
