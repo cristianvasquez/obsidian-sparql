@@ -5,6 +5,7 @@ An Obsidian plugin that transforms your vault into a queryable RDF graph, enabli
 ## Features
 
 - **SPARQL Queries**: Run semantic queries directly in your notes using `osg` code blocks
+- **Example Panels**: Ready-to-use SPARQL query panels in [example-panels/](./example-panels/)
 - **Auto-sync**: Automatic triplestore synchronization on file saves
 - **Debug Panel**: Live view of current note's RDF triples
 - **Property Placeholders**: Use `__label__`, `__type__` syntax for cleaner queries
@@ -28,6 +29,20 @@ SELECT ?note ?label WHERE {
 }
 ```
 ```
+
+## Example Panels
+
+The [example-panels/](./example-panels/) directory contains 7 ready-to-use SPARQL query panels:
+
+- **Backlinks and Links**: Find all notes linking to/from current note
+- **Document Triples**: Show all RDF triples for current document
+- **Navigation View**: Explore note relationships and connections
+- **PIMO**: Personal Information Model queries
+- **Stats**: Vault statistics and metrics
+- **Synonyms**: Find similar or related terms
+- **Tags**: Query notes by tags and categories
+
+Copy these panels to your vault and use them via the debug panel or as `osg` code blocks.
 
 ## Template System
 
