@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS = {
       },
     },
   },
+  rebuildOnStartup: false, // Rebuild entire index when plugin starts
   indexOnSave: true, // Index files when they are saved
   indexOnOpen: false, // Index files when they are opened for the first time
   panelTag: 'panel/query', // Tag to search for in Obsidian
@@ -82,9 +83,24 @@ export class SparqlSettingTab extends PluginSettingTab {
 
     const client = this.plugin.settings.clientSettings
 
+    // Create main sections with visual separation
+    this.createTriplestoreSection(containerEl)
+    this.createTriplifierSection(containerEl)
+    this.createPanelDiscoverySection(containerEl)
+  }
+
+  createTriplestoreSection(containerEl) {
+    // Triplestore section header
+    const triplestoreSection = containerEl.createEl('div', { cls: 'setting-section' })
+    triplestoreSection.createEl('h3', { text: '🗄️ Triplestore Configuration' })
+    triplestoreSection.createEl('p', { 
+      text: 'Choose how and where to store RDF triples from your notes.',
+      cls: 'setting-section-desc'
+    })
+
     // Triplestore Mode selection
-    new Setting(containerEl).setName('Triplestore Mode').
-      setDesc('Choose between embedded database or external triplestore').
+    new Setting(triplestoreSection).setName('Triplestore Mode').
+      setDesc('Embedded: Local database in your vault. External: Remote SPARQL endpoint.').
       addDropdown((dropdown) => {
         dropdown.addOption('embedded', 'Embedded Database (oxygraph-js)').
           addOption('external', 'External Triplestore').
@@ -103,9 +119,32 @@ export class SparqlSettingTab extends PluginSettingTab {
           })
       })
 
+    // External triplestore settings (only show when mode is 'external')
+    if (this.plugin.settings.mode === 'external') {
+      this.addExternalTriplestoreSettings(triplestoreSection)
+    }
+
+    // Embedded database settings (only show when mode is 'embedded')
+    if (this.plugin.settings.mode === 'embedded') {
+      this.addEmbeddedTriplestoreSettings(triplestoreSection)
+    }
+  }
+
+  createTriplifierSection(containerEl) {
+    // Triplifier section header
+    const triplifierSection = containerEl.createEl('div', { cls: 'setting-section' })
+    triplifierSection.createEl('h3', { text: '⚙️ Triplifier Configuration' })
+    triplifierSection.createEl('p', { 
+      text: 'Choose how to convert your markdown notes into RDF triples.',
+      cls: 'setting-section-desc'
+    })
+
+    // Triplification triggers at the top
+    this.addTriplificationTriggers(triplifierSection)
+
     // Triplifier Mode selection
-    new Setting(containerEl).setName('Triplifier Mode').
-      setDesc('Choose how to convert markdown to RDF triples').
+    new Setting(triplifierSection).setName('Triplifier Mode').
+      setDesc('Embedded: Built-in vault-triplifier. External: OSG command-line tool.').
       addDropdown((dropdown) => {
         // Show different options based on triplestore mode
         if (this.plugin.settings.mode === 'embedded') {
@@ -146,12 +185,72 @@ export class SparqlSettingTab extends PluginSettingTab {
           })
       })
 
-    // External triplestore settings (only show when mode is 'external')
-    if (this.plugin.settings.mode === 'external') {
-      containerEl.createEl('h3', { text: 'External Triplestore Settings' })
+    // External triplifier settings (show when using external triplifier)
+    if (this.plugin.settings.triplifierMode === 'external') {
+      this.addExternalTriplifierSettings(triplifierSection)
+    }
 
-      const addTextSetting = (name, desc, key) => {
-        new Setting(containerEl).setName(name).setDesc(desc).addText((text) => {
+    // Embedded triplifier settings (only show when triplifierMode is 'embedded')
+    if (this.plugin.settings.triplifierMode === 'embedded') {
+      this.addEmbeddedTriplifierSettings(triplifierSection)
+    }
+  }
+
+  createPanelDiscoverySection(containerEl) {
+    // Panel Discovery section header
+    const panelSection = containerEl.createEl('div', { cls: 'setting-section' })
+    panelSection.createEl('h3', { text: '🔍 Panel Discovery' })
+    panelSection.createEl('p', { 
+      text: 'Configure how to discover SPARQL query panels in your vault.',
+      cls: 'setting-section-desc'
+    })
+    
+    // Add link to examples
+    const examplesDiv = panelSection.createEl('div', { cls: 'setting-item-description' })
+    examplesDiv.innerHTML = '💡 <strong>Examples:</strong> See <a href="https://github.com/cristianvasquez/obsidian-sparql/tree/main/example-panels" target="_blank">example-panels/</a> for ready-to-use SPARQL query panels you can copy to your vault.'
+
+    // Panel Discovery Settings (both sources used simultaneously)
+    new Setting(panelSection).setName('Panel Tag Search').
+      setDesc('Tag to search for in Obsidian vault files to discover panels.').
+      addText((text) => {
+        text.setValue(this.plugin.settings.panelTag).
+          setPlaceholder('panel/query').
+          onChange(async (value) => {
+            this.plugin.settings.panelTag = value
+            await this.plugin.saveSettings()
+          })
+
+        text.inputEl.style.width = '100%'
+        text.inputEl.style.fontFamily = 'var(--font-monospace)'
+      })
+
+    new Setting(panelSection).setName('Panel SPARQL Query').
+      setDesc('SPARQL query used to discover panels from triplestore. Must return ?document, ?title, and ?content variables.').
+      addTextArea((text) => {
+        text.setValue(this.plugin.settings.panelQuery).
+          setPlaceholder('SPARQL query...').
+          onChange(async (value) => {
+            this.plugin.settings.panelQuery = value
+            await this.plugin.saveSettings()
+          })
+
+        // Make text area much larger and more readable
+        text.inputEl.style.width = '100%'
+        text.inputEl.style.height = '300px'
+        text.inputEl.style.fontFamily = 'var(--font-monospace)'
+        text.inputEl.style.fontSize = '13px'
+        text.inputEl.style.lineHeight = '1.4'
+        text.inputEl.style.resize = 'vertical'
+      })
+  }
+
+  addExternalTriplestoreSettings(container) {
+    container.createEl('h4', { text: 'External Triplestore Connection' })
+
+    const client = this.plugin.settings.clientSettings
+
+    const addTextSetting = (name, desc, key) => {
+        new Setting(container).setName(name).setDesc(desc).addText((text) => {
           text.setValue(client[key]).
             setPlaceholder('').
             onChange(async (value) => {
@@ -169,145 +268,134 @@ export class SparqlSettingTab extends PluginSettingTab {
       addTextSetting('Endpoint URL', 'The query endpoint URL', 'endpointUrl')
       addTextSetting('Update URL', 'The update endpoint URL', 'updateUrl')
       addTextSetting('User', 'Endpoint user (if applicable)', 'user')
-      addTextSetting(
-        'Password',
-        'Endpoint password (if applicable)',
-        'password',
-      )
-    }
+      addTextSetting('Password', 'Endpoint password (if applicable)', 'password')
+  }
 
-    // OSG Path setting (show when using external triplifier)
-    if (this.plugin.settings.triplifierMode === 'external') {
-      containerEl.createEl('h3', { text: 'External Triplifier Settings' })
-      
-      new Setting(containerEl).setName('OSG Path').
-        setDesc('Path to the OSG executable').
-        addText((text) => {
-          text.setValue(this.plugin.settings.osgPath).
-            setPlaceholder('/home/cvasquez/.local/share/pnpm/osg').
-            onChange(async (value) => {
-              this.plugin.settings.osgPath = value
-              await this.plugin.saveSettings()
-            })
+  addEmbeddedTriplestoreSettings(container) {
+    container.createEl('h4', { text: 'Embedded Database Options' })
+    
+    // Add any embedded triplestore specific settings here in the future
+    container.createEl('p', { 
+      text: 'The embedded database stores triples locally using oxigraph-js.',
+      cls: 'setting-item-description'
+    })
+  }
 
-          text.inputEl.style.width = '100%'
-          text.inputEl.style.fontFamily = 'var(--font-monospace)'
-          text.inputEl.style.fontSize = '14px'
-        })
-    }
-
-    // Embedded triplifier settings (only show when triplifierMode is 'embedded')
-    if (this.plugin.settings.triplifierMode === 'embedded') {
-      containerEl.createEl('h3', { text: 'Embedded Triplifier Settings' })
-
-      // Triplifier Options
-      new Setting(containerEl).setName('Triplifier Options').
-        setDesc(
-          'JSON configuration for the triplifier. See documentation: https://github.com/cristianvasquez/vault-triplifier/blob/main/docs/configuration.md').
-        addTextArea((text) => {
-          text.setValue(JSON.stringify(
-            this.plugin.settings.embeddedSettings.triplifierOptions, null, 2)).
-            setPlaceholder('{}').
-            onChange(async (value) => {
-              try {
-                // First parse the JSON
-                const parsedValue = JSON.parse(value)
-                
-                // Then validate against the schema
-                const validatedOptions = MarkdownTriplifierOptions.parse(parsedValue)
-                
-                // Only save if validation succeeds
-                this.plugin.settings.embeddedSettings.triplifierOptions = validatedOptions
-                await this.plugin.saveSettings()
-                
-                // Clear any previous error styling
-                text.inputEl.style.borderColor = ''
-                text.inputEl.style.backgroundColor = ''
-              } catch (e) {
-                // Show error styling
-                text.inputEl.style.borderColor = 'var(--text-error)'
-                text.inputEl.style.backgroundColor = 'var(--background-modifier-error)'
-                
-                let errorMessage = 'Invalid configuration: '
-                if (e instanceof SyntaxError) {
-                  errorMessage += 'Invalid JSON syntax'
-                } else if (e.errors) {
-                  // Zod validation errors
-                  errorMessage += e.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
-                } else {
-                  errorMessage += e.message
-                }
-                
-                console.error('Triplifier options validation error:', errorMessage)
-                
-                // Show error message to user (you could also use a Notice here)
-                text.inputEl.title = errorMessage
-              }
-            })
-
-          text.inputEl.style.width = '100%'
-          text.inputEl.style.height = '120px'
-          text.inputEl.style.fontFamily = 'var(--font-monospace)'
-          text.inputEl.style.fontSize = '12px'
-        })
-    }
-
-    // Embedded database settings (only show when mode is 'embedded')
-    if (this.plugin.settings.mode === 'embedded') {
-      containerEl.createEl('h3', { text: 'Embedded Database Settings' })
-
-      // Indexing Settings
-      new Setting(containerEl).setName('Index on Save').
-        setDesc('Automatically index files when they are saved.').
-        addToggle((toggle) => {
-          toggle.setValue(this.plugin.settings.indexOnSave).
-            onChange(async (value) => {
-              this.plugin.settings.indexOnSave = value
-              await this.plugin.saveSettings()
-            })
-        })
-
-      new Setting(containerEl).setName('Index on Open').
-        setDesc('Automatically index files when they are opened for the first time.').
-        addToggle((toggle) => {
-          toggle.setValue(this.plugin.settings.indexOnOpen).
-            onChange(async (value) => {
-              this.plugin.settings.indexOnOpen = value
-              await this.plugin.saveSettings()
-            })
-        })
-    }
-
-    // Panel Discovery Settings (both sources used simultaneously)
-    new Setting(containerEl).setName('Panel Tag Search').
-      setDesc(
-        'Tag to search for in Obsidian vault files to discover panels.').
+  addExternalTriplifierSettings(container) {
+    container.createEl('h4', { text: 'OSG External Triplifier' })
+    
+    new Setting(container).setName('OSG Path').
+      setDesc('Path to the OSG executable').
       addText((text) => {
-        text.setValue(this.plugin.settings.panelTag).
-          setPlaceholder('panel/query').
+        text.setValue(this.plugin.settings.osgPath).
+          setPlaceholder('/home/cvasquez/.local/share/pnpm/osg').
           onChange(async (value) => {
-            this.plugin.settings.panelTag = value
+            this.plugin.settings.osgPath = value
             await this.plugin.saveSettings()
           })
 
         text.inputEl.style.width = '100%'
+        text.inputEl.style.fontFamily = 'var(--font-monospace)'
+        text.inputEl.style.fontSize = '14px'
       })
 
-    new Setting(containerEl).setName('Panel SPARQL Query').
-      setDesc(
-        'SPARQL query used to discover panels from triplestore. Must return ?document, ?title, and ?content variables.').
+  }
+
+  addEmbeddedTriplifierSettings(container) {
+    container.createEl('h4', { text: 'Vault-Triplifier Configuration' })
+
+    // Triplifier Options
+    new Setting(container).setName('Triplifier Options').
+      setDesc('JSON configuration for the triplifier. See documentation: https://github.com/cristianvasquez/vault-triplifier/blob/main/docs/configuration.md').
       addTextArea((text) => {
-        text.setValue(this.plugin.settings.panelQuery).
-          setPlaceholder('SPARQL query...').
+        text.setValue(JSON.stringify(
+          this.plugin.settings.embeddedSettings.triplifierOptions, null, 2)).
+          setPlaceholder('{}').
           onChange(async (value) => {
-            this.plugin.settings.panelQuery = value
-            await this.plugin.saveSettings()
+            try {
+              // First parse the JSON
+              const parsedValue = JSON.parse(value)
+              
+              // Then validate against the schema
+              const validatedOptions = MarkdownTriplifierOptions.parse(parsedValue)
+              
+              // Only save if validation succeeds
+              this.plugin.settings.embeddedSettings.triplifierOptions = validatedOptions
+              await this.plugin.saveSettings()
+              
+              // Clear any previous error styling
+              text.inputEl.style.borderColor = ''
+              text.inputEl.style.backgroundColor = ''
+            } catch (e) {
+              // Show error styling
+              text.inputEl.style.borderColor = 'var(--text-error)'
+              text.inputEl.style.backgroundColor = 'var(--background-modifier-error)'
+              
+              let errorMessage = 'Invalid configuration: '
+              if (e instanceof SyntaxError) {
+                errorMessage += 'Invalid JSON syntax'
+              } else if (e.errors) {
+                // Zod validation errors
+                errorMessage += e.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
+              } else {
+                errorMessage += e.message
+              }
+              
+              console.error('Triplifier options validation error:', errorMessage)
+              
+              // Show error message to user (you could also use a Notice here)
+              text.inputEl.title = errorMessage
+            }
           })
 
+        // Make text area much larger and more readable
         text.inputEl.style.width = '100%'
-        text.inputEl.style.height = '200px'
+        text.inputEl.style.height = '400px'
         text.inputEl.style.fontFamily = 'var(--font-monospace)'
-        text.inputEl.style.fontSize = '12px'
+        text.inputEl.style.fontSize = '13px'
+        text.inputEl.style.lineHeight = '1.4'
+        text.inputEl.style.resize = 'vertical'
+      })
+  }
+
+  addTriplificationTriggers(container) {
+    container.createEl('h5', { text: 'Triplification Triggers' })
+    container.createEl('p', { 
+      text: 'Configure when to automatically convert your markdown files to RDF triples.',
+      cls: 'setting-item-description'
+    })
+    
+    // Startup indexing
+    new Setting(container).setName('Rebuild Index on Startup').
+      setDesc('Completely rebuild the RDF index when the plugin starts (reprocesses all vault files).').
+      addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.rebuildOnStartup || false).
+          onChange(async (value) => {
+            this.plugin.settings.rebuildOnStartup = value
+            await this.plugin.saveSettings()
+          })
+      })
+
+    // File save indexing
+    new Setting(container).setName('Index on Save').
+      setDesc('Automatically convert files to RDF when they are saved.').
+      addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.indexOnSave).
+          onChange(async (value) => {
+            this.plugin.settings.indexOnSave = value
+            await this.plugin.saveSettings()
+          })
+      })
+
+    // File open indexing
+    new Setting(container).setName('Index on Open').
+      setDesc('Automatically convert files to RDF when they are opened for the first time.').
+      addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.indexOnOpen).
+          onChange(async (value) => {
+            this.plugin.settings.indexOnOpen = value
+            await this.plugin.saveSettings()
+          })
       })
   }
 }

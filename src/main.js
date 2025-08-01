@@ -45,6 +45,19 @@ export default class SparqlPlugin extends Plugin {
       console.log('[OSG] Processing osg-debug code block:', source.substring(0, 50) + '...')
       await renderSparqlView(source, el, this.appContext, true)
     })
+
+    // Check if we should rebuild index on startup
+    if (this.settings.rebuildOnStartup) {
+      console.log('[OSG] Rebuilding index on startup...')
+      // Use setTimeout to avoid blocking plugin load
+      setTimeout(async () => {
+        try {
+          await this.controller.rebuildIndex()
+        } catch (error) {
+          console.error('[OSG] Failed to rebuild index on startup:', error)
+        }
+      }, 1000) // Wait 1 second after plugin load
+    }
   }
 
   onunload () {
