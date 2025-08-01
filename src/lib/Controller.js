@@ -1,56 +1,218 @@
+import { pathToFileURL } from 'vault-triplifier'
+import { NotificationService } from './NotificationService.js'
+
+// Triplestore services
+import { EmbeddedTriplestoreService } from './triplestore/EmbeddedTriplestoreService.js'
+import { RemoteTriplestoreService } from './triplestore/RemoteTriplestoreService.js'
+
+// Triplifier services
+import { EmbeddedTriplifierService } from './triplifier/EmbeddedTriplifierService.js'
+import { ExternalTriplifierService } from './triplifier/ExternalTriplifierService.js'
+
 /**
- * Base controller providing common functionality and interface definition
+ * Controller that orchestrates both triplestore and triplifier services
  */
 export class Controller {
-  constructor (app, settings) {
+  constructor(app, settings) {
     this.app = app
     this.settings = settings
+    this.notifications = new NotificationService()
+    
+    // Initialize services based on settings
+    this.initializeTriplestoreService()
+    this.initializeTriplifierService()
   }
 
-  /**
-   * Execute SPARQL SELECT query
-   * @param {string} sparqlQuery - SPARQL SELECT query
-   * @returns {Promise<Array>} Query results
-   */
-  async select (sparqlQuery) {
-    throw new Error(`${this.constructor.name} must implement select method`)
+  initializeTriplestoreService() {
+    switch (this.settings.mode) {
+      case 'embedded':
+        this.triplestoreService = new EmbeddedTriplestoreService(this.app, this.settings)
+        break
+      case 'external':
+        if (!this.settings.clientSettings) {
+          throw new Error('[Controller] External triplestore mode requires clientSettings to be configured')
+        }
+        this.triplestoreService = new RemoteTriplestoreService(this.app, this.settings)
+        break
+      default:
+        // Default to embedded for backward compatibility
+        this.triplestoreService = new EmbeddedTriplestoreService(this.app, this.settings)
+    }
   }
 
-  /**
-   * Execute SPARQL CONSTRUCT query
-   * @param {string} sparqlQuery - SPARQL CONSTRUCT query
-   * @returns {Promise<Array>} Query results
-   */
-  async construct (sparqlQuery) {
-    throw new Error(`${this.constructor.name} must implement construct method`)
+  initializeTriplifierService() {
+    switch (this.settings.triplifierMode) {
+      case 'embedded':
+        this.triplifierService = new EmbeddedTriplifierService(this.app, this.settings)
+        break
+      case 'external':
+        this.triplifierService = new ExternalTriplifierService(this.app, this.settings)
+        break
+      default:
+        // Default based on triplestore mode for backward compatibility
+        if (this.settings.mode === 'embedded') {
+          this.triplifierService = new EmbeddedTriplifierService(this.app, this.settings)
+        } else {
+          this.triplifierService = new ExternalTriplifierService(this.app, this.settings)
+        }
+    }
   }
 
-  /**
-   * Sync a file to the triplestore
-   * @param {Object} file - Obsidian file object
-   * @param {string} content - File content
-   * @param {boolean} showNotifications - Whether to show notifications
-   * @returns {Promise<boolean>} Success status
-   */
-  async syncFile (file, content, showNotifications = false) {
-    throw new Error(`${this.constructor.name} must implement syncFile method`)
+  async select(sparqlQuery) {
+    return await this.triplestoreService.select(sparqlQuery)
   }
 
-  /**
-   * Rebuild the entire index/triplestore
-   * @returns {Promise<void>}
-   */
-  async rebuildIndex () {
-    throw new Error(`${this.constructor.name} must implement rebuildIndex method`)
+  async construct(sparqlQuery) {
+    return await this.triplestoreService.construct(sparqlQuery)
   }
 
-  /**
-   * Delete a named graph from the triplestore
-   * @param {string} path - File path
-   * @param {boolean} showNotifications - Whether to show notifications
-   * @returns {Promise<boolean>} Success status
-   */
-  async deleteNamedGraph (path, showNotifications = false) {
-    throw new Error(`${this.constructor.name} must implement deleteNamedGraph method`)
+  async syncFile(file, content, showNotifications = false) {
+    if (showNotifications) {
+      this.notifications.info(`Syncing ${file.basename}...`)
+    }
+
+    // Get absolute path for triplification
+    const absolutePath = this.app.vault.adapter.getFullPath(file.path)
+
+    // Check if this file type can be processed by the triplifier service
+    if (!this.triplifierService.canProcess(absolutePath)) {
+      return true
+    }
+
+    // Handle different combinations of triplestore and triplifier
+    return await this.handleSyncFile(file, content, absolutePath, showNotifications)
+  }
+
+  async handleSyncFile(file, content, absolutePath, showNotifications) {
+    const triplifierMode = this.settings.triplifierMode
+    const triplestoreMode = this.settings.mode
+
+    if (triplifierMode === 'external') {
+      // External triplifier handles both triplification and storage
+      return await this.handleExternalTriplifier(absolutePath, showNotifications, file.basename)
+    } else if (triplifierMode === 'embedded') {
+      // Embedded triplifier converts, then we store based on triplestore mode
+      return await this.handleEmbeddedTriplifier(file, content, absolutePath, showNotifications)
+    }
+
+    return false
+  }
+
+  async handleExternalTriplifier(absolutePath, showNotifications, basename) {
+    // Use external triplifier (OSG) which handles both conversion and storage
+    const success = await this.triplifierService.syncFile(absolutePath)
+    
+    if (showNotifications) {
+      if (success) {
+        this.notifications.success(`${basename} synced externally`)
+      } else {
+        this.notifications.error(`${basename} external sync failed`)
+      }
+    }
+    
+    return success
+  }
+
+  async handleEmbeddedTriplifier(file, content, absolutePath, showNotifications) {
+    try {
+      // Use embedded triplifier to convert content to RDF
+      const result = await this.triplifierService.triplify(absolutePath, content)
+      
+      if (!result) {
+        if (showNotifications) {
+          this.notifications.info(`${file.basename} skipped (no triplification result)`)
+        }
+        return true
+      }
+
+      const { dataset, graphUri } = result
+
+      // First, clear any existing triples for this file
+      await this.triplestoreService.clearGraph(graphUri)
+
+      // Add new triples to the triplestore
+      await this.triplestoreService.addTriples(dataset, graphUri)
+
+      if (showNotifications) {
+        this.notifications.success(`${file.basename} synced (${dataset.size} triples)`)
+      }
+
+      return true
+    } catch (error) {
+      console.error('Embedded triplifier sync error:', error)
+      if (showNotifications) {
+        this.notifications.error(`${file.basename} sync failed`)
+      }
+      return false
+    }
+  }
+
+  async rebuildIndex() {
+    this.notifications.info('Rebuilding index...')
+
+    // Get vault base URI for scoped clearing
+    const vaultBasePath = this.app.vault.adapter.getBasePath?.() || this.app.vault.adapter.basePath || ''
+    const vaultBaseUri = pathToFileURL(vaultBasePath + '/')
+
+    // Clear all data from this vault in the triplestore
+    await this.triplestoreService.clearAll(vaultBaseUri)
+
+    // Process all markdown files in the vault
+    const markdownFiles = this.app.vault.getMarkdownFiles()
+    let processedFiles = 0
+
+    for (const file of markdownFiles) {
+      try {
+        const content = await this.app.vault.read(file)
+
+        // Process with controller
+        const success = await this.syncFile(file, content, false)
+        if (success) {
+          processedFiles++
+        }
+      } catch (error) {
+        console.error('Error processing file', file.path, ':', error)
+      }
+    }
+
+    let totalTriples = 'unknown'
+    if (this.triplestoreService instanceof EmbeddedTriplestoreService) {
+      totalTriples = this.triplestoreService.size
+    }
+
+    this.notifications.success(`Index rebuilt: ${processedFiles} files, ${totalTriples} triples`)
+  }
+
+  async deleteNamedGraph(path, showNotifications = false) {
+    if (showNotifications) {
+      this.notifications.info(`Removing ${path}...`)
+    }
+
+    const absolutePath = this.app.vault.adapter.getFullPath(path)
+    const graphUri = pathToFileURL(absolutePath)
+
+    if (this.settings.triplifierMode === 'external') {
+      // Use external triplifier to remove
+      const success = await this.triplifierService.removeFile(absolutePath)
+      if (showNotifications) {
+        if (success) {
+          this.notifications.success(`${path} removed externally`)
+        } else {
+          this.notifications.error(`${path} removal failed`)
+        }
+      }
+      return success
+    } else {
+      // Use triplestore service to clear the graph
+      const success = await this.triplestoreService.clearGraph(graphUri)
+      if (showNotifications) {
+        if (success) {
+          this.notifications.success(`${path} removed from triplestore`)
+        } else {
+          this.notifications.error(`${path} removal failed`)
+        }
+      }
+      return success
+    }
   }
 }

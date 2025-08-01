@@ -1,8 +1,7 @@
 import { Plugin } from 'obsidian'
 import { renderSparqlView } from './views/SparqlView.js'
 import { DEFAULT_SETTINGS, SparqlSettingTab } from './lib/settings.js'
-import { LocalController } from './lib/local/LocalController.js'
-import { RemoteController } from './lib/remote/RemoteController.js'
+import { Controller } from './lib/Controller.js'
 import { CommandManager } from './lib/commands.js'
 import { CurrentFileView, SIDE_VIEW_ID } from './views/CurrentFileView.js'
 import { ns } from './namespaces.js'
@@ -11,12 +10,8 @@ export default class SparqlPlugin extends Plugin {
   async onload () {
     await this.loadSettings()
 
-    // Initialize the appropriate controller based on mode
-    if (this.settings.mode === 'embedded') {
-      this.controller = new LocalController(this.app, this.settings)
-    } else {
-      this.controller = new RemoteController(this.app, this.settings)
-    }
+    // Initialize the controller (it will choose services based on settings)
+    this.controller = new Controller(this.app, this.settings)
 
     this.commandManager = new CommandManager(this, this.controller)
 
@@ -41,12 +36,14 @@ export default class SparqlPlugin extends Plugin {
       (leaf) => new CurrentFileView(leaf, this.appContext),
     )
 
-    this.registerMarkdownCodeBlockProcessor('osg', (source, el) => {
-      renderSparqlView(source, el, this.appContext, false)
+    this.registerMarkdownCodeBlockProcessor('osg', async (source, el) => {
+      console.log('[OSG] Processing osg code block:', source.substring(0, 50) + '...')
+      await renderSparqlView(source, el, this.appContext, false)
     })
 
-    this.registerMarkdownCodeBlockProcessor('osg-debug', (source, el) => {
-      renderSparqlView(source, el, this.appContext, true)
+    this.registerMarkdownCodeBlockProcessor('osg-debug', async (source, el) => {
+      console.log('[OSG] Processing osg-debug code block:', source.substring(0, 50) + '...')
+      await renderSparqlView(source, el, this.appContext, true)
     })
   }
 
@@ -79,13 +76,8 @@ export default class SparqlPlugin extends Plugin {
 
   // Reinitialize controller when mode changes
   reinitializeController () {
-
-    // Create new controller based on current mode
-    if (this.settings.mode === 'embedded') {
-      this.controller = new LocalController(this.app, this.settings)
-    } else {
-      this.controller = new RemoteController(this.app, this.settings)
-    }
+    // Create new controller (it will choose services based on current settings)
+    this.controller = new Controller(this.app, this.settings)
 
     // Update command manager with new controller
     this.commandManager.controller = this.controller
@@ -93,6 +85,7 @@ export default class SparqlPlugin extends Plugin {
     // Update app context
     this.appContext.controller = this.controller
   }
+
 
 }
 

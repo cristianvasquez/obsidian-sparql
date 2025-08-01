@@ -2,7 +2,8 @@ import { PluginSettingTab, Setting } from 'obsidian'
 import { MarkdownTriplifierOptions } from 'vault-triplifier'
 
 export const DEFAULT_SETTINGS = {
-  mode: 'external', // 'embedded' or 'external'
+  mode: 'external', // 'embedded' or 'external' - triplestore mode
+  triplifierMode: 'external', // 'embedded' or 'external' - triplifier mode
   clientSettings: {
     endpointUrl: 'http://localhost:7878/query?union-default-graph',
     updateUrl: 'http://localhost:7878/update?union-default-graph',
@@ -81,8 +82,8 @@ export class SparqlSettingTab extends PluginSettingTab {
 
     const client = this.plugin.settings.clientSettings
 
-    // Mode selection
-    new Setting(containerEl).setName('Database Mode').
+    // Triplestore Mode selection
+    new Setting(containerEl).setName('Triplestore Mode').
       setDesc('Choose between embedded database or external triplestore').
       addDropdown((dropdown) => {
         dropdown.addOption('embedded', 'Embedded Database (oxygraph-js)').
@@ -95,6 +96,49 @@ export class SparqlSettingTab extends PluginSettingTab {
 
             // Reinitialize controller if mode changed
             if (oldMode !== value) {
+              this.plugin.reinitializeController()
+            }
+
+            this.display() // Refresh the settings panel
+          })
+      })
+
+    // Triplifier Mode selection
+    new Setting(containerEl).setName('Triplifier Mode').
+      setDesc('Choose how to convert markdown to RDF triples').
+      addDropdown((dropdown) => {
+        // Show different options based on triplestore mode
+        if (this.plugin.settings.mode === 'embedded') {
+          // For embedded triplestore, only embedded triplifier is valid
+          dropdown.addOption('embedded', 'Embedded (vault-triplifier)')
+        } else {
+          // For external triplestore, both embedded and external are valid
+          dropdown.addOption('embedded', 'Embedded (vault-triplifier)').
+            addOption('external', 'External (OSG triplifier)')
+        }
+        
+        // Ensure current value is valid for the triplestore mode
+        let currentValue = this.plugin.settings.triplifierMode
+        if (this.plugin.settings.mode === 'embedded' && (currentValue === 'external' || currentValue === 'none')) {
+          // Invalid combination - default to embedded
+          currentValue = 'embedded'
+          this.plugin.settings.triplifierMode = currentValue
+          this.plugin.saveSettings()
+        } else if (currentValue === 'none') {
+          // 'none' option removed - default to appropriate option
+          currentValue = this.plugin.settings.mode === 'embedded' ? 'embedded' : 'external'
+          this.plugin.settings.triplifierMode = currentValue
+          this.plugin.saveSettings()
+        }
+        
+        dropdown.setValue(currentValue).
+          onChange(async (value) => {
+            const oldTriplifierMode = this.plugin.settings.triplifierMode
+            this.plugin.settings.triplifierMode = value
+            await this.plugin.saveSettings()
+
+            // Reinitialize controller if triplifier mode changed
+            if (oldTriplifierMode !== value) {
               this.plugin.reinitializeController()
             }
 
@@ -130,8 +174,12 @@ export class SparqlSettingTab extends PluginSettingTab {
         'Endpoint password (if applicable)',
         'password',
       )
+    }
 
-      // OSG Path setting
+    // OSG Path setting (show when using external triplifier)
+    if (this.plugin.settings.triplifierMode === 'external') {
+      containerEl.createEl('h3', { text: 'External Triplifier Settings' })
+      
       new Setting(containerEl).setName('OSG Path').
         setDesc('Path to the OSG executable').
         addText((text) => {
@@ -148,9 +196,9 @@ export class SparqlSettingTab extends PluginSettingTab {
         })
     }
 
-    // Embedded database settings (only show when mode is 'embedded')
-    if (this.plugin.settings.mode === 'embedded') {
-      containerEl.createEl('h3', { text: 'Embedded Database Settings' })
+    // Embedded triplifier settings (only show when triplifierMode is 'embedded')
+    if (this.plugin.settings.triplifierMode === 'embedded') {
+      containerEl.createEl('h3', { text: 'Embedded Triplifier Settings' })
 
       // Triplifier Options
       new Setting(containerEl).setName('Triplifier Options').
@@ -202,6 +250,11 @@ export class SparqlSettingTab extends PluginSettingTab {
           text.inputEl.style.fontFamily = 'var(--font-monospace)'
           text.inputEl.style.fontSize = '12px'
         })
+    }
+
+    // Embedded database settings (only show when mode is 'embedded')
+    if (this.plugin.settings.mode === 'embedded') {
+      containerEl.createEl('h3', { text: 'Embedded Database Settings' })
 
       // Indexing Settings
       new Setting(containerEl).setName('Index on Save').
@@ -223,7 +276,6 @@ export class SparqlSettingTab extends PluginSettingTab {
               await this.plugin.saveSettings()
             })
         })
-
     }
 
     // Panel Discovery Settings (both sources used simultaneously)

@@ -14,51 +14,38 @@ import { handleTriplestoreError } from '../lib/simpleErrorHandler.js'
  */
 export async function renderSparqlView (
   source, container, context, debug = false) {
-  try {
-    // Get active file
-    const activeFile = context.app.workspace.getActiveFile()
-    if (!activeFile) {
-      // Show simple message instead of throwing error
-      container.innerHTML = '<p>No active file</p>'
-      return
-    }
+  // Get active file
+  const activeFile = context.app.workspace.getActiveFile()
+  if (!activeFile) {
+    // Show simple message instead of throwing error
+    container.innerHTML = '<p>No active file</p>'
+    return
+  }
 
-    // Get absolute path and repo path
-    const absolutePath = context.app.vault.adapter.getFullPath(activeFile.path)
-    const repoPath = context.app.vault.adapter.basePath
+  // Get absolute path and repo path
+  const absolutePath = context.app.vault.adapter.getFullPath(activeFile.path)
+  const repoPath = context.app.vault.adapter.basePath
 
-    // Replace template variables
-    const replacedQuery = replaceAllTokens(source, absolutePath, activeFile,
-      repoPath)
+  // Replace template variables
+  const replacedQuery = replaceAllTokens(source, absolutePath, activeFile,
+    repoPath)
 
-    // Parse query to determine type
-    const parser = new Parser({ skipValidation: true, sparqlStar: true })
-    const parsed = parser.parse(replacedQuery)
+  // Parse query to determine type
+  const parser = new Parser({ skipValidation: true, sparqlStar: true })
+  const parsed = parser.parse(replacedQuery)
 
-    // Execute query based on type
-    let results
-    if (parsed.queryType === 'SELECT') {
-      results = await context.controller.select(replacedQuery)
-      await renderSelectResults(results, container, context, debug,
-        replacedQuery)
-    } else if (parsed.queryType === 'CONSTRUCT') {
-      results = await context.controller.construct(replacedQuery)
-      await renderConstructQuery(results, container, context, debug,
-        replacedQuery)
-    } else {
-      throw new Error(`Unsupported query type: ${parsed.queryType}`)
-    }
-
-  } catch (error) {
-    console.error('SparqlView error:', error)
-
-    // Try to handle with our error handler first
-    const handled = handleTriplestoreError(error, context.plugin.settings)
-
-    // If not handled, render the error in the content area
-    if (!handled) {
-      await renderError(error, container, context)
-    }
+  // Execute query based on type
+  let results
+  if (parsed.queryType === 'SELECT') {
+    results = await context.controller.select(replacedQuery)
+    await renderSelectResults(results, container, context, debug,
+      replacedQuery)
+  } else if (parsed.queryType === 'CONSTRUCT') {
+    results = await context.controller.construct(replacedQuery)
+    await renderConstructQuery(results, container, context, debug,
+      replacedQuery)
+  } else {
+    throw new Error(`Unsupported query type: ${parsed.queryType}`)
   }
 }
 
