@@ -2,8 +2,8 @@ import { PluginSettingTab, Setting, Notice } from 'obsidian'
 import { MarkdownTriplifierOptions } from 'vault-triplifier'
 
 export const DEFAULT_SETTINGS = {
-  mode: 'external', // 'embedded' or 'external' - triplestore mode
-  triplifierMode: 'external', // 'embedded' or 'external' - triplifier mode
+  mode: 'embedded', // 'embedded' or 'external' - triplestore mode
+  triplifierMode: 'embedded', // 'embedded' or 'external' - triplifier mode
   clientSettings: {
     endpointUrl: 'http://localhost:7878/query?union-default-graph',
     updateUrl: 'http://localhost:7878/update?union-default-graph',
@@ -22,8 +22,8 @@ export const DEFAULT_SETTINGS = {
         'sections',
         'anchors',
       ],
-      includeSelectors: true,
-      includeRaw: true,
+      includeSelectors: false,
+      includeRaw: false,
       prefix: {
         rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
         rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS = {
   },
   rebuildOnStartup: false,
   indexOnSave: true,
-  indexOnOpen: false,
+  indexOnOpen: true,
   panelTag: 'panel/query',
   panelQuery: `PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -742,7 +742,7 @@ class AddPrefixModal extends Modal {
       .onChange(value => {
         this.prefix = value
       })
-      
+
       // Keyboard shortcut support
       text.inputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -759,7 +759,7 @@ class AddPrefixModal extends Modal {
       .setPlaceholder('http://xmlns.com/foaf/0.1/')
       .onChange(value => {
         this.uri = value
-        
+
         // URL validation with visual feedback
         try {
           new URL(value)
@@ -769,7 +769,7 @@ class AddPrefixModal extends Modal {
         }
       })
       text.inputEl.style.width = '100%'
-      
+
       // Keyboard shortcut support
       text.inputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -795,7 +795,7 @@ class AddPrefixModal extends Modal {
       })
     })
   }
-  
+
   submit() {
     if (this.prefix && this.uri) {
       try {
@@ -839,7 +839,7 @@ class AddMappingModal extends Modal {
       .onChange(value => {
         this.phrase = value
       })
-      
+
       // Keyboard shortcut support
       text.inputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -857,7 +857,7 @@ class AddMappingModal extends Modal {
       .onChange(value => {
         this.property = value
       })
-      
+
       // Keyboard shortcut support
       text.inputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -883,7 +883,7 @@ class AddMappingModal extends Modal {
       })
     })
   }
-  
+
   submit() {
     if (this.phrase && this.property) {
       this.onSubmit(this.phrase, this.property)
@@ -921,7 +921,7 @@ class ImportConfigModal extends Modal {
       .setPlaceholder('{\n  "includeSelectors": true,\n  ...\n}')
       .onChange(value => {
         this.config = value
-        
+
         // JSON validation with visual feedback
         try {
           if (value.trim()) {
@@ -936,7 +936,7 @@ class ImportConfigModal extends Modal {
       text.inputEl.style.height = '300px'
       text.inputEl.style.fontFamily = 'var(--font-monospace)'
       text.inputEl.style.fontSize = '13px'
-      
+
       // Keyboard shortcut support
       text.inputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -962,7 +962,7 @@ class ImportConfigModal extends Modal {
       })
     })
   }
-  
+
   submit() {
     if (this.config) {
       try {
