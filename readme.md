@@ -1,69 +1,77 @@
 # obsidian-sparql
 
-An Obsidian plugin that transforms your vault into a queryable RDF graph, enabling powerful SPARQL queries against your notes and their relationships.
+A SPARQL alternative to Dataview for Obsidian. Query your markdown notes using standard RDF/SPARQL, with support for
+cross-vault and cross-repository querying through shared triplestores.
+
+## What it does
+
+Your markdown files are indexed as RDF triples
+using [vault-triplifier](https://github.com/cristianvasquez/vault-triplifier) and stored in a triplestore. You can then:
+
+- **Run SPARQL queries** in `osg` code blocks within your notes
+- **View contextual panels** showing query results for the current file you're viewing
+- **Query across multiple vaults** when using a shared triplestore
+
+Unlike Dataview's custom query language, this uses standard SPARQL, making your queries interoperable with other RDF
+tools and enabling external systems (like MCP servers) to query your knowledge base.
 
 ## Features
 
-- **SPARQL Queries**: Run semantic queries directly in your notes using `osg` code blocks
-- **Example Panels**: Ready-to-use SPARQL query panels in [example-panels/](./example-panels/)
-- **Auto-sync**: Automatic triplestore synchronization on file saves
-- **Debug Panel**: Live view of current note's RDF triples
-- **Property Placeholders**: Use `__label__`, `__type__` syntax for cleaner queries
-- **Wiki Link Integration**: Query relationships between `[[linked notes]]`
-- **Configurable**: Customizable SPARQL endpoints and OSG paths
+- **In-memory triplestore**: Start immediately without external setup
+- **Cross-vault querying**: Query across multiple Obsidian vaults from a shared triplestore
+- **Contextual panels**: Automatic query results for the file you're currently viewing
+- **Agent integration**: External tools can query your knowledge base via SPARQL endpoints
+- **RDF ecosystem**: Leverage existing SPARQL tools and semantic web technologies
 
-## Quick Start
+## Quick start
 
-1. Install the plugin in Obsidian
-2. Configure SPARQL endpoint in settings (default: `http://localhost:7878/query`)
-3. Set OSG path for triplestore sync
-4. Add SPARQL queries to your notes:
+1. Install the plugin (uses in-memory triplestore by default)
+2. Add SPARQL queries to your notes using `osg` code blocks:
 
-```sparql
 ```osg
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?p ?o WHERE {
+  ?s ?p ?o .
+} LIMIT 5
+```
 
-SELECT ?note ?label WHERE {
-  ?note __label__ ?label
-  FILTER(CONTAINS(?label, "project"))
+To narrow down to the current note, you can use the name of the note as subject.
+
+```osg
+SELECT ?p ?o WHERE {
+  [[Current Note]] ?p ?o .
 }
 ```
-```
 
-## Example Panels
+3. For external triplestore: Configure endpoint in settings
+4. Use the debug panel to view contextual queries for your current file
 
-The [example-panels/](./example-panels/) directory contains 7 ready-to-use SPARQL query panels:
+## Template system
 
-- **Backlinks and Links**: Find all notes linking to/from current note
-- **Document Triples**: Show all RDF triples for current document
-- **Navigation View**: Explore note relationships and connections
-- **PIMO**: Personal Information Model queries
-- **Stats**: Vault statistics and metrics
-- **Synonyms**: Find similar or related terms
-- **Tags**: Query notes by tags and categories
+SPARQL queries will overwrite special tokens before querying
 
-Copy these panels to your vault and use them via the debug panel or as `osg` code blocks.
+- `__THIS__`: Current note name URI (`urn:name:NoteName`)
+- `__DOC__`: Current note file URI (`file:///absolute/path`)
+- `__property__`: Property placeholders (e.g., `__label__` → `<urn:property:label>`)
+- `[[Note Name]]`: Converts to name URIs in queries
 
-## Template System
+## Example queries
 
-- `__THIS__`: Current note name URI
-- `__DOC__`: Current note file URI  
-- `__property__`: Property placeholders (e.g., `__label__`, `__created__`)
-- `[[Note Name]]`: Wiki links to other notes
+See [example-panels/](./example-panels/) for ready-to-use SPARQL queries covering backlinks, stats, navigation, etc.
 
 ## Commands
 
-- **Open debug panel**: View current file's RDF graph
-- **Insert SPARQL template**: Quick query template insertion
-- **Sync current file**: Manual file synchronization
-- **Sync with triplestore**: Full vault sync
+- **Open panel**: View current file's RDF triples
+- **Insert SPARQL template**: Add query template at cursor
+- **Sync current file**: Sync active file with triplestore
+- **Sync with triplestore**: Full vault synchronization
 
 ## Development
 
 ```bash
-npm install
-npm run build
-npm test
+npm run dev    # Development with hot reload
+npm run build  # Production build
+npm test       # Run tests
 ```
 
-See [CLAUDE.md](./CLAUDE.md) for detailed architecture and development guidelines.
+See [CLAUDE.md](./CLAUDE.md) for architecture details
+and [vault-triplifier](https://github.com/cristianvasquez/vault-triplifier) for RDF conversion examples.

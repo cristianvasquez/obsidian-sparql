@@ -15,16 +15,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Vitest**: Testing framework with happy-dom environment
 
 ### Key Components
-- `src/main.js`: Main plugin class (`Prototype_11`) extending Obsidian's Plugin (95 lines, refactored)
-- `src/components/SparqlView.js`: Primary SPARQL query interface (vanilla JS)
-- `src/components/DebugPanel.js`: Simple debug panel rendering hardcoded SPARQL queries
-- `src/lib/Triplestore.js`: SPARQL endpoint communication layer
-- `src/lib/templates.js`: Dynamic query template system with property placeholders
-- `src/lib/settings.js`: Settings management and UI (`SparqlSettingTab`)
-- `src/lib/sync.js`: File synchronization with OSG triplestore (`SyncManager`)
-- `src/lib/commands.js`: Command and event registration (`CommandManager`)
+- `src/main.js`: Main plugin class (`SparqlPlugin`) extending Obsidian's Plugin
+- `src/lib/Controller.js`: Central controller coordinating triplestore and triplifier services
+- `src/views/SparqlView.js`: Primary SPARQL query interface (vanilla JS)
 - `src/views/CurrentFileView.js`: Side panel view management
+- `src/views/MainPanel.js`: Main panel view rendering
+- `src/lib/settings.js`: Settings management and UI (`SparqlSettingTab`)
+- `src/lib/commands.js`: Command and event registration (`CommandManager`)
+- `src/lib/templates.js`: Dynamic query template system with property placeholders
 - `src/lib/uriUtils.js`: URI detection and conversion utilities
+- `src/components/renderError.js`: Error handling with actionable triplestore startup notices
+
+#### Service Architecture
+- `src/lib/triplestore/TriplestoreService.js`: Abstract triplestore interface
+- `src/lib/triplestore/RemoteTriplestoreService.js`: Remote SPARQL endpoint communication
+- `src/lib/triplestore/EmbeddedTriplestoreService.js`: In-memory triplestore for development
+- `src/lib/triplifier/TriplifierService.js`: Abstract triplifier interface  
+- `src/lib/triplifier/ExternalTriplifierService.js`: OSG command-line triplification
+- `src/lib/triplifier/EmbeddedTriplifierService.js`: Direct vault-triplifier integration
 
 ### URI Convention System (ADR-001)
 The plugin uses a simplified three-URI system:
@@ -89,12 +97,19 @@ Direct function calls replace EventEmitter pattern. File modification events tri
 
 ### Component Architecture
 - **MarkdownRenderer-first**: All components output markdown and use `MarkdownRenderer.render()`
+- **Service composition**: Controller pattern coordinating pluggable triplestore and triplifier services
 - **S-P-O Table Format**: CONSTRUCT results displayed as Subject-Predicate-Object tables with subject grouping
 - **Auto-sync**: File saves trigger automatic triplestore synchronization
-- **Modular Design**: Separated concerns into focused modules (settings, sync, commands, views)
+- **Error handling**: `renderError.js` provides actionable notices for triplestore connection issues
+
+### Service Pattern
+The plugin uses a service composition architecture:
+- **TriplestoreService**: Abstract interface for SPARQL endpoint communication (remote vs embedded)
+- **TriplifierService**: Abstract interface for markdown→RDF conversion (external OSG vs embedded vault-triplifier)
+- **Controller**: Coordinates services based on settings configuration
 
 ### Link Rendering
-Uses Obsidian's `MarkdownRenderer.render()` for proper wiki-link display and `workspace.openLinkText()` for navigation (see `docs/how-to.md`).
+Uses Obsidian's `MarkdownRenderer.render()` for proper wiki-link display and `workspace.openLinkText()` for navigation.
 
 ## Configuration
 
