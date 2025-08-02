@@ -23,9 +23,17 @@ tools and enabling external systems (like MCP servers) to query your knowledge b
 - **Agent integration**: External tools can query your knowledge base via SPARQL endpoints
 - **RDF ecosystem**: Leverage existing SPARQL tools and semantic web technologies
 
+## Installation
+
+Install like any other Obsidian plugin:
+
+1. **Community Plugins**: Search for "SPARQL" in Obsidian's Community Plugins
+2. **BRAT**: Install via [BRAT](https://tfthacker.com/BRAT) using this repository URL
+3. **Manual**: Download and build to `.obsidian/plugins/obsidian-sparql/`
+
 ## Quick start
 
-1. Install the plugin (uses in-memory triplestore by default)
+1. Enable the plugin (uses in-memory triplestore by default)
 2. Add SPARQL queries to your notes using `osg` code blocks:
 
 ```osg
@@ -42,8 +50,8 @@ SELECT ?p ?o WHERE {
 }
 ```
 
-3. For external triplestore: Configure endpoint in settings
-4. Use the debug panel to view contextual queries for your current file
+- For external triplestore: Configure endpoint in settings 
+- Open the panel to view contextual queries for your current file
 
 ## Template system
 
