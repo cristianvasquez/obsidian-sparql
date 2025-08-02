@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian'
+import { Plugin, Notice } from 'obsidian'
 import { renderSparqlView } from './views/SparqlView.js'
 import { DEFAULT_SETTINGS, SparqlSettingTab } from './lib/settings.js'
 import { Controller } from './lib/Controller.js'
@@ -55,6 +55,7 @@ export default class SparqlPlugin extends Plugin {
           await this.controller.rebuildIndex()
         } catch (error) {
           console.error('[OSG] Failed to rebuild index on startup:', error)
+          new Notice(`Failed to rebuild index on startup: ${error.message}`)
         }
       }, 1000) // Wait 1 second after plugin load
     }

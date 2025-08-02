@@ -43,17 +43,14 @@ export class ExternalTriplifierService extends TriplifierService {
   async syncFile(absolutePath) {
     const command = `${this.settings.osgPath} sync --file "${absolutePath}"`
 
-    try {
-      const { stdout, stderr } = await this.executeCommand(command)
+    const { stdout, stderr } = await this.executeCommand(command)
 
-      if (stderr) {
-        console.error('External triplifier sync stderr:', stderr)
-      }
-      return true
-    } catch (error) {
-      console.error('External triplifier sync error:', error)
-      return false
+    if (stderr && stderr.trim()) {
+      // Stderr can contain important error information that should be visible
+      throw new Error(`OSG sync stderr: ${stderr.trim()}`)
     }
+    
+    return true
   }
 
   /**
@@ -64,12 +61,13 @@ export class ExternalTriplifierService extends TriplifierService {
   async removeFile(absolutePath) {
     const command = `${this.settings.osgPath} sync --remove --file "${absolutePath}"`
 
-    try {
-      await this.executeCommand(command)
-      return true
-    } catch (error) {
-      console.error('External triplifier remove error:', error)
-      return false
+    const { stdout, stderr } = await this.executeCommand(command)
+
+    if (stderr && stderr.trim()) {
+      // Stderr can contain important error information that should be visible
+      throw new Error(`OSG remove stderr: ${stderr.trim()}`)
     }
+    
+    return true
   }
 }

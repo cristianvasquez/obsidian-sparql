@@ -1,3 +1,4 @@
+import { Notice } from 'obsidian'
 import { refreshPanelQueries } from '../views/MainPanel.js'
 import { getOSGQueryTemplate, getTemplate } from './templates.js'
 
@@ -43,8 +44,16 @@ export class CommandManager {
         const activeFile = this.plugin.app.workspace.getActiveFile()
         if (activeFile) {
           if (!checking) {
-            this.plugin.app.vault.read(activeFile).then(content => {
-              this.controller.syncFile(activeFile, content, true)
+            this.plugin.app.vault.read(activeFile).then(async content => {
+              try {
+                await this.controller.syncFile(activeFile, content, true)
+              } catch (error) {
+                console.error('Command sync file error:', error)
+                // Error already shown by Controller with showNotifications=true
+              }
+            }).catch(error => {
+              console.error('Failed to read file for sync:', error)
+              new Notice(`Failed to read file: ${error.message}`)
             })
           }
           return true
@@ -76,8 +85,13 @@ export class CommandManager {
       this.plugin.app.vault.on('modify', async (file) => {
         // Only sync when file is modified/saved if setting is enabled
         if (this.plugin.settings.indexOnSave) {
-          const content = await this.plugin.app.vault.read(file)
-          await this.controller.syncFile(file, content)
+          try {
+            const content = await this.plugin.app.vault.read(file)
+            await this.controller.syncFile(file, content)
+          } catch (error) {
+            console.error('Auto-sync on save error:', error)
+            new Notice(`Auto-sync failed for ${file.basename}: ${error.message}`)
+          }
         }
         // Update debug panel if open
         if (file && this.plugin.debugView) {
@@ -88,11 +102,16 @@ export class CommandManager {
 
     this.plugin.registerEvent(
       this.plugin.app.vault.on('rename', async (file, oldPath) => {
-        await this.controller.deleteNamedGraph(oldPath)
-        // Only sync renamed file if indexOnSave is enabled
-        if (this.plugin.settings.indexOnSave) {
-          const content = await this.plugin.app.vault.read(file)
-          await this.controller.syncFile(file, content)
+        try {
+          await this.controller.deleteNamedGraph(oldPath)
+          // Only sync renamed file if indexOnSave is enabled
+          if (this.plugin.settings.indexOnSave) {
+            const content = await this.plugin.app.vault.read(file)
+            await this.controller.syncFile(file, content)
+          }
+        } catch (error) {
+          console.error('Auto-sync on rename error:', error)
+          new Notice(`Auto-sync failed for renamed ${file.basename}: ${error.message}`)
         }
         // Update debug panel if open
         if (file && this.plugin.debugView) {
@@ -113,8 +132,13 @@ export class CommandManager {
       this.plugin.app.workspace.on('file-open', async (file) => {
         // Index file on open if setting is enabled
         if (file && this.plugin.settings.indexOnOpen) {
-          const content = await this.plugin.app.vault.read(file)
-          await this.controller.syncFile(file, content)
+          try {
+            const content = await this.plugin.app.vault.read(file)
+            await this.controller.syncFile(file, content)
+          } catch (error) {
+            console.error('Auto-sync on open error:', error)
+            new Notice(`Auto-sync failed for ${file.basename}: ${error.message}`)
+          }
         }
         // Update debug panel if open
         if (file && this.plugin.debugView) {

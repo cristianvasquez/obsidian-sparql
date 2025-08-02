@@ -77,74 +77,60 @@ export class Controller {
 
     // Check if this file type can be processed by the triplifier service
     if (!this.triplifierService.canProcess(absolutePath)) {
-      return true
+      if (showNotifications) {
+        this.notifications.info(`${file.basename} skipped (unsupported file type)`)
+      }
+      return
     }
 
     // Handle different combinations of triplestore and triplifier
-    return await this.handleSyncFile(file, content, absolutePath, showNotifications)
+    await this.handleSyncFile(file, content, absolutePath, showNotifications)
   }
 
   async handleSyncFile(file, content, absolutePath, showNotifications) {
     const triplifierMode = this.settings.triplifierMode
-    const triplestoreMode = this.settings.mode
 
     if (triplifierMode === 'external') {
       // External triplifier handles both triplification and storage
-      return await this.handleExternalTriplifier(absolutePath, showNotifications, file.basename)
+      await this.handleExternalTriplifier(absolutePath, showNotifications, file.basename)
     } else if (triplifierMode === 'embedded') {
       // Embedded triplifier converts, then we store based on triplestore mode
-      return await this.handleEmbeddedTriplifier(file, content, absolutePath, showNotifications)
+      await this.handleEmbeddedTriplifier(file, content, absolutePath, showNotifications)
+    } else {
+      throw new Error(`Unknown triplifier mode: ${triplifierMode}`)
     }
-
-    return false
   }
 
   async handleExternalTriplifier(absolutePath, showNotifications, basename) {
     // Use external triplifier (OSG) which handles both conversion and storage
-    const success = await this.triplifierService.syncFile(absolutePath)
+    await this.triplifierService.syncFile(absolutePath)
 
     if (showNotifications) {
-      if (success) {
-        this.notifications.success(`${basename} synced externally`)
-      } else {
-        this.notifications.error(`${basename} external sync failed`)
-      }
+      this.notifications.success(`${basename} synced externally`)
     }
-
-    return success
   }
 
   async handleEmbeddedTriplifier(file, content, absolutePath, showNotifications) {
-    try {
-      // Use embedded triplifier to convert content to RDF
-      const result = await this.triplifierService.triplify(absolutePath, content)
+    // Use embedded triplifier to convert content to RDF
+    const result = await this.triplifierService.triplify(absolutePath, content)
 
-      if (!result) {
-        if (showNotifications) {
-          this.notifications.info(`${file.basename} skipped (no triplification result)`)
-        }
-        return true
-      }
-
-      const { dataset, graphUri } = result
-
-      // First, clear any existing triples for this file
-      await this.triplestoreService.clearGraph(graphUri)
-
-      // Add new triples to the triplestore
-      await this.triplestoreService.addTriples(dataset, graphUri)
-
+    if (!result) {
       if (showNotifications) {
-        this.notifications.success(`${file.basename} synced (${dataset.size} triples)`)
+        this.notifications.info(`${file.basename} skipped (no triplification result)`)
       }
+      return
+    }
 
-      return true
-    } catch (error) {
-      console.error('Embedded triplifier sync error:', error)
-      if (showNotifications) {
-        this.notifications.error(`${file.basename} sync failed`)
-      }
-      return false
+    const { dataset, graphUri } = result
+
+    // First, clear any existing triples for this file
+    await this.triplestoreService.clearGraph(graphUri)
+
+    // Add new triples to the triplestore
+    await this.triplestoreService.addTriples(dataset, graphUri)
+
+    if (showNotifications) {
+      this.notifications.success(`${file.basename} synced (${dataset.size} triples)`)
     }
   }
 
@@ -165,13 +151,13 @@ export class Controller {
       try {
         const content = await this.app.vault.read(file)
 
-        // Process with controller
-        const success = await this.syncFile(file, content, false)
-        if (success) {
-          processedFiles++
-        }
+        // Process with controller - if no error is thrown, it succeeded
+        await this.syncFile(file, content, false)
+        processedFiles++
       } catch (error) {
         console.error('Error processing file', file.path, ':', error)
+        this.notifications.error(`Failed to process ${file.path}: ${error.message}`)
+        // Continue processing other files even if one fails
       }
     }
 
@@ -193,26 +179,16 @@ export class Controller {
 
     if (this.settings.triplifierMode === 'external') {
       // Use external triplifier to remove
-      const success = await this.triplifierService.removeFile(absolutePath)
+      await this.triplifierService.removeFile(absolutePath)
       if (showNotifications) {
-        if (success) {
-          this.notifications.success(`${path} removed externally`)
-        } else {
-          this.notifications.error(`${path} removal failed`)
-        }
+        this.notifications.success(`${path} removed externally`)
       }
-      return success
     } else {
       // Use triplestore service to clear the graph
-      const success = await this.triplestoreService.clearGraph(graphUri)
+      await this.triplestoreService.clearGraph(graphUri)
       if (showNotifications) {
-        if (success) {
-          this.notifications.success(`${path} removed from triplestore`)
-        } else {
-          this.notifications.error(`${path} removal failed`)
-        }
+        this.notifications.success(`${path} removed from triplestore`)
       }
-      return success
     }
   }
 }
