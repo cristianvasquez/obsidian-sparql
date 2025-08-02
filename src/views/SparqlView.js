@@ -2,11 +2,10 @@ import { MarkdownRenderer } from 'obsidian'
 import { Parser } from 'sparqljs'
 import { generateMarkdownTable, generateMarkdownTableRaw } from '../components/BindingsTableAsMarkdown.js'
 import { resultsToMarkdownTurtle } from '../components/turtleAsMarkdown.js'
+import { renderError } from '../components/renderError.js'
 import { prettyPrint } from '../lib/prettyPrint.js'
 import { replaceAllTokens } from '../lib/templates.js'
 import { ns } from '../namespaces.js'
-
-import { handleTriplestoreError } from '../lib/simpleErrorHandler.js'
 
 /**
  * Vanilla JS SparqlView function to replace Vue component
@@ -14,38 +13,45 @@ import { handleTriplestoreError } from '../lib/simpleErrorHandler.js'
  */
 export async function renderSparqlView (
   source, container, context, debug = false) {
-  // Get active file
-  const activeFile = context.app.workspace.getActiveFile()
-  if (!activeFile) {
-    // Show simple message instead of throwing error
-    container.innerHTML = '<p>No active file</p>'
-    return
-  }
+  try {
+    // Get active file
+    const activeFile = context.app.workspace.getActiveFile()
+    if (!activeFile) {
+      // Show simple message instead of throwing error
+      container.innerHTML = '<p>No active file</p>'
+      return
+    }
 
-  // Get absolute path and repo path
-  const absolutePath = context.app.vault.adapter.getFullPath(activeFile.path)
-  const repoPath = context.app.vault.adapter.basePath
+    // Get absolute path and repo path
+    const absolutePath = context.app.vault.adapter.getFullPath(activeFile.path)
+    const repoPath = context.app.vault.adapter.basePath
 
-  // Replace template variables
-  const replacedQuery = replaceAllTokens(source, absolutePath, activeFile,
-    repoPath)
+    // Replace template variables
+    const replacedQuery = replaceAllTokens(source, absolutePath, activeFile,
+      repoPath)
 
-  // Parse query to determine type
-  const parser = new Parser({ skipValidation: true, sparqlStar: true })
-  const parsed = parser.parse(replacedQuery)
+    // Parse query to determine type
+    const parser = new Parser({ skipValidation: true, sparqlStar: true })
+    const parsed = parser.parse(replacedQuery)
 
-  // Execute query based on type
-  let results
-  if (parsed.queryType === 'SELECT') {
-    results = await context.controller.select(replacedQuery)
-    await renderSelectResults(results, container, context, debug,
-      replacedQuery)
-  } else if (parsed.queryType === 'CONSTRUCT') {
-    results = await context.controller.construct(replacedQuery)
-    await renderConstructQuery(results, container, context, debug,
-      replacedQuery)
-  } else {
-    throw new Error(`Unsupported query type: ${parsed.queryType}`)
+    // Execute query based on type
+    let results
+    if (parsed.queryType === 'SELECT') {
+      results = await context.controller.select(replacedQuery)
+      await renderSelectResults(results, container, context, debug,
+        replacedQuery)
+    } else if (parsed.queryType === 'CONSTRUCT') {
+      results = await context.controller.construct(replacedQuery)
+      await renderConstructQuery(results, container, context, debug,
+        replacedQuery)
+    } else {
+      throw new Error(`Unsupported query type: ${parsed.queryType}`)
+    }
+  } catch (error) {
+    console.error('SPARQL View error:', error)
+    
+    // Always render error inline in the same place as SPARQL results
+    await renderError(error, container, context)
   }
 }
 
@@ -132,23 +138,3 @@ ${prettyPrint(results, ns)}
   )
 }
 
-/**
- * Render error state
- */
-async function renderError (error, container, context) {
-  const errorMessage = error instanceof Error ? error.message : String(error)
-
-  const markdown = `**Error:** \n\n\`\`\`\n${errorMessage}\n\`\`\`\n`
-
-  // Even for errors, use proper source path for consistency
-  const activeFile = context.app.workspace.getActiveFile()
-  const sourcePath = activeFile ? activeFile.path : ''
-
-  await MarkdownRenderer.render(
-    context.app,
-    markdown,
-    container,
-    sourcePath,
-    context.plugin,
-  )
-}
