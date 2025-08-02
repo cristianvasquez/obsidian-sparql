@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'vault-triplifier'
 import { NotificationService } from './NotificationService.js'
+import { getVaultBaseUri } from './utils.js'
 
 // Triplestore services
 import { EmbeddedTriplestoreService } from './triplestore/EmbeddedTriplestoreService.js'
@@ -17,7 +18,7 @@ export class Controller {
     this.app = app
     this.settings = settings
     this.notifications = new NotificationService()
-    
+
     // Initialize services based on settings
     this.initializeTriplestoreService()
     this.initializeTriplifierService()
@@ -101,7 +102,7 @@ export class Controller {
   async handleExternalTriplifier(absolutePath, showNotifications, basename) {
     // Use external triplifier (OSG) which handles both conversion and storage
     const success = await this.triplifierService.syncFile(absolutePath)
-    
+
     if (showNotifications) {
       if (success) {
         this.notifications.success(`${basename} synced externally`)
@@ -109,7 +110,7 @@ export class Controller {
         this.notifications.error(`${basename} external sync failed`)
       }
     }
-    
+
     return success
   }
 
@@ -117,7 +118,7 @@ export class Controller {
     try {
       // Use embedded triplifier to convert content to RDF
       const result = await this.triplifierService.triplify(absolutePath, content)
-      
+
       if (!result) {
         if (showNotifications) {
           this.notifications.info(`${file.basename} skipped (no triplification result)`)
@@ -151,8 +152,7 @@ export class Controller {
     this.notifications.info('Rebuilding index...')
 
     // Get vault base URI for scoped clearing
-    const vaultBasePath = this.app.vault.adapter.getBasePath?.() || this.app.vault.adapter.basePath || ''
-    const vaultBaseUri = pathToFileURL(vaultBasePath + '/')
+    const vaultBaseUri = getVaultBaseUri(this.app)
 
     // Clear all data from this vault in the triplestore
     await this.triplestoreService.clearAll(vaultBaseUri)
