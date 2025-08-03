@@ -25,22 +25,23 @@ tools and enabling external systems (like MCP servers) to query your knowledge b
 
 ## Installation
 
-Install like any other Obsidian plugin:
+Download zip archive from GitHub releases page. Extract the archive into <vault>/.obsidian/plugins.
 
-1. **Community Plugins**: Search for "SPARQL" in Obsidian's Community Plugins
-2. **BRAT**: Install via [BRAT](https://tfthacker.com/BRAT) using this repository URL
-3. **Manual**: Download and build to `.obsidian/plugins/obsidian-sparql/`
+Or install the plugin via [BRAT](https://tfthacker.com/BRAT) using this repository URL
 
 ## Quick start
 
-1. Enable the plugin (uses in-memory triplestore by default)
-2. Add SPARQL queries to your notes using `osg` code blocks:
+1. Enable the plugin.  (uses in-memory triplestore by default)
+2. Run the index command
+3. Query your notes using `osg` code blocks:
 
 ```osg
 SELECT ?p ?o WHERE {
   ?s ?p ?o .
 } LIMIT 5
 ```
+
+It will display 5 random 'triples'.
 
 To narrow down to the current note, you can use the name of the note as subject.
 
@@ -50,7 +51,7 @@ SELECT ?p ?o WHERE {
 }
 ```
 
-- For external triplestore: Configure endpoint in settings 
+- For external triplestore: Configure endpoint in settings
 - Open the panel to view contextual queries for your current file
 
 ## Template system
