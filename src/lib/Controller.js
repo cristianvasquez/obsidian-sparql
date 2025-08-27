@@ -80,11 +80,12 @@ export class Controller {
       if (showNotifications) {
         this.notifications.info(`${file.basename} skipped (unsupported file type)`)
       }
-      return
+      return true
     }
 
     // Handle different combinations of triplestore and triplifier
     await this.handleSyncFile(file, content, absolutePath, showNotifications)
+    return true
   }
 
   async handleSyncFile(file, content, absolutePath, showNotifications) {

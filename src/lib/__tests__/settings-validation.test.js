@@ -6,7 +6,7 @@ describe('Triplifier Options Validation', () => {
     const validOptions = {
       includeRaw: true,
       includeSelectors: true,
-      partitionBy: ['identifier', 'headers-h2-h3'],
+      partitionBy: ['headers-h1-h2', 'headers-h2-h3'],
       includeLabelsFor: ['documents', 'sections'],
       prefix: {
         rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
@@ -43,7 +43,7 @@ describe('Triplifier Options Validation', () => {
     const result = MarkdownTriplifierOptions.parse(minimalOptions)
     
     expect(result.includeLabelsFor).toEqual([])
-    expect(result.partitionBy).toEqual(['identifier'])
+    expect(result.partitionBy).toEqual(['headers-h2-h3'])
     expect(result.includeRaw).toBe(false)
     expect(result.includeSelectors).toBe(true)
   })

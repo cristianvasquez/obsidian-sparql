@@ -719,7 +719,7 @@ export class SparqlSettingTab extends PluginSettingTab {
 }
 
 // Modal classes
-import { Modal, TextComponent } from 'obsidian'
+import { Modal } from 'obsidian'
 
 class AddPrefixModal extends Modal {
   constructor(app, onSubmit) {

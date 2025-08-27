@@ -7,14 +7,17 @@ const mockApp = {
   vault: {
     adapter: {
       getFullPath: (path) => `/test/vault/${path}`
-    }
+    },
+    getAbstractFileByPath: () => ({
+      stat: { ctime: Date.now(), mtime: Date.now() }
+    })
   }
 }
 
 const mockSettings = {
   embeddedSettings: {
     triplifierOptions: {
-      partitionBy: ['identifier'],
+      partitionBy: ['headers-h2-h3'],
       includeLabelsFor: ['documents'],
       includeSelectors: true,
       includeRaw: true,

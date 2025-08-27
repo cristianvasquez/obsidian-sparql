@@ -90,7 +90,8 @@ export class CommandManager {
             await this.controller.syncFile(file, content)
           } catch (error) {
             console.error('Auto-sync on save error:', error)
-            new Notice(`Auto-sync failed for ${file.basename}: ${error.message}`)
+            new Notice(
+              `Auto-sync failed for ${file.basename}: ${error.message}`)
           }
         }
         // Update debug panel if open
@@ -111,7 +112,8 @@ export class CommandManager {
           }
         } catch (error) {
           console.error('Auto-sync on rename error:', error)
-          new Notice(`Auto-sync failed for renamed ${file.basename}: ${error.message}`)
+          new Notice(
+            `Auto-sync failed for renamed ${file.basename}: ${error.message}`)
         }
         // Update debug panel if open
         if (file && this.plugin.debugView) {
@@ -137,7 +139,8 @@ export class CommandManager {
             await this.controller.syncFile(file, content)
           } catch (error) {
             console.error('Auto-sync on open error:', error)
-            new Notice(`Auto-sync failed for ${file.basename}: ${error.message}`)
+            new Notice(
+              `Auto-sync failed for ${file.basename}: ${error.message}`)
           }
         }
         // Update debug panel if open
